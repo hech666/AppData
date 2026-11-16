@@ -11,6 +11,7 @@
 #import "ADActionsBarView.h"
 #import "ADTitleSectionHeaderView.h"
 #import "ADVersionController.h"
+#import "ADIconOverrides.h"
 
 @implementation ADMainDataSource
 
@@ -40,7 +41,7 @@
     } else if ([self isAppGroupsSection:section]) {
         return self.appData.appGroups.count;
     } else if ([self isManageSection:section]) {
-        return self.appData.appStoreVendable ? 3 : 2;
+        return self.appData.appStoreVendable ? 4 : 3;
     }
     return 0;
 }
@@ -251,6 +252,14 @@
             }
             return cell;
         } else if (indexPath.row == 2) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADIconEntry"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"ADIconEntry"];
+            cell.backgroundColor = UIColor.clearColor;
+            cell.textLabel.text = @"修改图标 / 批量导入";
+            cell.accessoryView = [ADAppearance.sharedInstance tableCellChevronImageView];
+            [ADAppearance applyStylesToCell:cell];
+            return cell;
+        } else if (indexPath.row == 3) {
             UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADVersionEntry"];
             if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"ADVersionEntry"];
             cell.backgroundColor = UIColor.clearColor;
@@ -331,7 +340,9 @@
     if ([self isManageSection:indexPath.section]) {
         if (indexPath.row == 1) {
             [self.dataViewController switchTableViews];
-        } else if (indexPath.row == 2 && self.appData.appStoreVendable) {
+        } else if (indexPath.row == 2) {
+            [ADIconManagerViewController presentFromController:self.dataViewController bundleIdentifier:self.appData.bundleIdentifier];
+        } else if (indexPath.row == 3 && self.appData.appStoreVendable) {
             ADVersionController *versions = [[ADVersionController alloc] initWithBundleIdentifier:self.appData.bundleIdentifier bundleURL:self.appData.bundleURL currentVersion:self.appData.version];
             UINavigationController *navigation = [[UINavigationController alloc] initWithRootViewController:versions];
             navigation.modalPresentationStyle = UIModalPresentationFullScreen;
