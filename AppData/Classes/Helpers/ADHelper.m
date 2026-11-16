@@ -63,16 +63,7 @@
     dispatch_async(dispatch_get_main_queue(), ^{
         [[UIApplication sharedApplication] openURL:filzaURL options:@{} completionHandler:^(BOOL success) {
             if (success) return;
-            NSURL *iFileURL = [NSURL URLWithString:[@"ifile://file://" stringByAppendingString:encodedPath]];
-            if (!iFileURL) {
-                showFailure(@"系统未能打开 Filza。请确认 Filza 已正确安装，或复制路径手动打开。");
-                return;
-            }
-            [[UIApplication sharedApplication] openURL:iFileURL options:@{} completionHandler:^(BOOL fallbackSuccess) {
-                if (!fallbackSuccess) {
-                    showFailure(@"系统未能打开 Filza 或 iFile。请确认文件管理器已正确安装且支持 URL 跳转，或复制路径手动打开。");
-                }
-            }];
+            showFailure(@"系统未能通过 filza:// 打开目录。你可以复制路径，在 Filza 中手动打开。");
         }];
     });
 }
