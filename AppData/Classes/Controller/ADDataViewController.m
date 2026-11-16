@@ -224,7 +224,9 @@
                         self.iconImageView.image = original;
                         if (original) self.appData.iconImage = original;
                     }
-                    [self.class showAlertFromViewController:self title:@"图标图片" message:restored ? @"已移除此应用的覆盖，并请求刷新桌面。" : (error.localizedDescription ?: @"恢复图标失败。") cancelTitle:@"好"];
+                    if (!restored) {
+                        [self.class showAlertFromViewController:self title:@"图标图片" message:(error.localizedDescription ?: @"恢复图标失败。") cancelTitle:@"好"];
+                    }
                 });
             });
         }];
@@ -282,8 +284,9 @@
                     UIImage *image = [[ADIconOverrideStore sharedStore] imageForBundleIdentifier:identifier size:CGSizeMake(58,58) scale:UIScreen.mainScreen.scale radius:12];
                     if (image) self.iconImageView.image = image;
                 }
-                NSString *message = saved ? ([[ADIconOverrideStore sharedStore] enabled] ? @"已更换图标并请求刷新桌面。" : @"图片已保存，请在更多信息的图标管理中开启图标覆盖。") : (error.localizedDescription ?: @"无法读取所选图片，或图片超过 16 MB。");
-                [self.class showAlertFromViewController:self title:@"图标图片" message:message cancelTitle:@"好"];
+                if (!saved) {
+                    [self.class showAlertFromViewController:self title:@"图标图片" message:(error.localizedDescription ?: @"无法读取所选图片，或图片超过 16 MB。") cancelTitle:@"好"];
+                }
             });
         }];
     }];

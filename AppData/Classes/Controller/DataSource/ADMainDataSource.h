@@ -13,7 +13,7 @@
 @interface ADMainDataSource : NSObject <UITableViewDataSource, UITableViewDelegate>
 
 @property (nonatomic, strong) ADAppData *appData;
-@property (nonatomic, strong) ADDataViewController *dataViewController;
+@property (nonatomic, weak) ADDataViewController *dataViewController;
 
 - (instancetype)initWithAppData:(ADAppData *)data dataViewController:(ADDataViewController *)dataViewController;
 
