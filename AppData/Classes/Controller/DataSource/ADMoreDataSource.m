@@ -11,6 +11,7 @@
 #import "ADDataViewController.h"
 #import "ADIconOverrides.h"
 #import "ADSettings.h"
+#import "ADChoicyBridge.h"
 
 @interface ADMoreDataSource ()
 @property (nonatomic, assign) NSInteger expandedSection;
@@ -23,6 +24,8 @@
         self.appData = data;
         self.dataViewController = dataViewController;
         self.expandedSection = -1;
+        [ADChoicyBridge startObserving];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(adChoicyChanged:) name:ADChoicySettingsChangedNotification object:nil];
     }
     return self;
 }
@@ -50,7 +53,7 @@
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section == 0) {
-        return 7;
+        return 8;
     } else {
         return self.expandedSection == section ? [self numberOfRowsInSection:section] : 0;
     }
@@ -106,6 +109,17 @@
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
             cell.accessoryView = nil;
+        } else if (indexPath.row == 7) {
+            cell.textLabel.text = @"禁止插件注入";
+            NSError *error = nil;
+            BOOL available = [ADChoicyBridge isAvailable];
+            UISwitch *toggle = [UISwitch new];
+            toggle.on = [ADChoicyBridge injectionDisabledForIdentifier:self.appData.bundleIdentifier error:&error];
+            toggle.enabled = available && !error && self.appData.isApplication && ![self.appData.bundleIdentifier isEqual:@"com.apple.Preferences"] && ![self.appData.bundleIdentifier isEqual:@"com.apple.springboard"];
+            toggle.accessibilityLabel = @"禁止当前应用插件注入，与 Choicy 同步";
+            cell.detailTextLabel.text = !available ? @"需安装 Choicy" : (error ? @"请先检查 Choicy 配置" : @"与 Choicy 同步");
+            [toggle addTarget:self action:@selector(adChoicyToggleChanged:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = toggle;
         }
         return cell;
     } else {
@@ -135,6 +149,28 @@
 }
 
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
+
+- (void)adChoicyChanged:(NSNotification *)notification {
+    [self.dataViewController.moreTableView reloadData];
+}
+
+- (void)adChoicyToggleChanged:(UISwitch *)sender {
+    BOOL disabled = sender.on;
+    sender.enabled = NO;
+    NSString *identifier = self.appData.bundleIdentifier;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSError *error = nil;
+        BOOL ok = [ADChoicyBridge setInjectionDisabled:disabled forIdentifier:identifier error:&error];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.dataViewController.moreTableView reloadData];
+            if (!ok) {
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Choicy 同步失败" message:error.localizedDescription ?: @"未能保存设置，请重试。" preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
+                [self.dataViewController presentViewController:alert animated:YES completion:nil];
+            }
+        });
+    });
+}
 
 - (void)adSwipeToggleChanged:(UISwitch *)sender {
     [ADSettings setObject:@(sender.on) forKey:kSwipeUpEnabled];
