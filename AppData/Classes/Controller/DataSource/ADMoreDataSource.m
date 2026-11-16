@@ -11,7 +11,6 @@
 #import "ADDataViewController.h"
 #import "ADIconOverrides.h"
 #import "ADSettings.h"
-#import "ADChoicyBridge.h"
 
 @interface ADMoreDataSource ()
 @property (nonatomic, assign) NSInteger expandedSection;
@@ -24,8 +23,6 @@
         self.appData = data;
         self.dataViewController = dataViewController;
         self.expandedSection = -1;
-        [ADChoicyBridge startObserving];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(adChoicyChanged:) name:ADChoicySettingsChangedNotification object:nil];
     }
     return self;
 }
@@ -53,7 +50,7 @@
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section == 0) {
-        return 8;
+        return 7;
     } else {
         return self.expandedSection == section ? [self numberOfRowsInSection:section] : 0;
     }
@@ -75,26 +72,26 @@
         cell.accessoryType = UITableViewCellAccessoryNone;
         cell.accessoryView = nil;
         [ADAppearance applyStylesToCell:cell];
-        if (indexPath.row == 0) {
+        if (indexPath.row == 4) {
             cell.textLabel.text = @"内部版本号";
             cell.detailTextLabel.text = [NSString stringWithFormat:@"%@",self.appData.internalVersion];
-        } else if (indexPath.row == 1) {
+        } else if (indexPath.row == 5) {
             cell.textLabel.text = @"最低 iOS 版本";
             cell.detailTextLabel.text = [NSString stringWithFormat:@"%@",self.appData.minimumOSVersion];
-        } else if (indexPath.row == 2) {
+        } else if (indexPath.row == 6) {
             cell.textLabel.text = @"构建平台版本";
             cell.detailTextLabel.text = [NSString stringWithFormat:@"%@",self.appData.platformVersion];
-        } else if (indexPath.row == 3) {
+        } else if (indexPath.row == 0) {
             cell.textLabel.text = @"图标管理";
             cell.detailTextLabel.text = @"批量导入或恢复图标";
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-        } else if (indexPath.row == 4) {
+        } else if (indexPath.row == 1) {
             cell.textLabel.text = @"重置权限";
             cell.detailTextLabel.text = self.appData.appStoreVendable ? @"重新请求应用授权" : @"此应用不支持";
             cell.selectionStyle = self.appData.appStoreVendable ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
             cell.accessoryType = self.appData.appStoreVendable ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;
-        } else if (indexPath.row == 5) {
+        } else if (indexPath.row == 2) {
             cell.textLabel.text = @"上滑图标";
             cell.detailTextLabel.text = @"向上滑动应用图标打开面板";
             cell.selectionStyle = UITableViewCellSelectionStyleNone;
@@ -103,23 +100,12 @@
             toggle.on = [ADSettings swipeUpEnabled];
             [toggle addTarget:self action:@selector(adSwipeToggleChanged:) forControlEvents:UIControlEventValueChanged];
             cell.accessoryView = toggle;
-        } else if (indexPath.row == 6) {
+        } else if (indexPath.row == 3) {
             cell.textLabel.text = @"外观";
             cell.detailTextLabel.text = [ADSettings titleForAppearanceStyle:[ADSettings appearanceStyle]];
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
             cell.accessoryView = nil;
-        } else if (indexPath.row == 7) {
-            cell.textLabel.text = @"禁止插件注入";
-            NSError *error = nil;
-            BOOL available = [ADChoicyBridge isAvailable];
-            UISwitch *toggle = [UISwitch new];
-            toggle.on = [ADChoicyBridge injectionDisabledForIdentifier:self.appData.bundleIdentifier error:&error];
-            toggle.enabled = available && !error && self.appData.isApplication && ![self.appData.bundleIdentifier isEqual:@"com.apple.Preferences"] && ![self.appData.bundleIdentifier isEqual:@"com.apple.springboard"];
-            toggle.accessibilityLabel = @"禁止当前应用插件注入，与 Choicy 同步";
-            cell.detailTextLabel.text = !available ? @"需安装 Choicy" : (error ? @"请先检查 Choicy 配置" : @"与 Choicy 同步");
-            [toggle addTarget:self action:@selector(adChoicyToggleChanged:) forControlEvents:UIControlEventValueChanged];
-            cell.accessoryView = toggle;
         }
         return cell;
     } else {
@@ -148,30 +134,6 @@
     return nil;
 }
 
-- (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
-
-- (void)adChoicyChanged:(NSNotification *)notification {
-    [self.dataViewController.moreTableView reloadData];
-}
-
-- (void)adChoicyToggleChanged:(UISwitch *)sender {
-    BOOL disabled = sender.on;
-    sender.enabled = NO;
-    NSString *identifier = self.appData.bundleIdentifier;
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-        NSError *error = nil;
-        BOOL ok = [ADChoicyBridge setInjectionDisabled:disabled forIdentifier:identifier error:&error];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.dataViewController.moreTableView reloadData];
-            if (!ok) {
-                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Choicy 同步失败" message:error.localizedDescription ?: @"未能保存设置，请重试。" preferredStyle:UIAlertControllerStyleAlert];
-                [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
-                [self.dataViewController presentViewController:alert animated:YES completion:nil];
-            }
-        });
-    });
-}
-
 - (void)adSwipeToggleChanged:(UISwitch *)sender {
     [ADSettings setObject:@(sender.on) forKey:kSwipeUpEnabled];
     [[NSNotificationCenter defaultCenter] postNotificationName:kAppDataSwipeUpPreferencesChangedNotification object:nil];
@@ -197,11 +159,11 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    if (indexPath.section == 0 && indexPath.row == 3) {
+    if (indexPath.section == 0 && indexPath.row == 0) {
         [ADIconManagerViewController presentFromController:self.dataViewController bundleIdentifier:nil];
         return;
     }
-    if (indexPath.section == 0 && indexPath.row == 6) {
+    if (indexPath.section == 0 && indexPath.row == 3) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"外观" message:@"选择面板显示风格" preferredStyle:UIAlertControllerStyleAlert];
         NSArray<NSString *> *values = [ADSettings appearanceValues];
         NSArray<NSString *> *titles = [ADSettings appearanceTitles];
@@ -218,7 +180,7 @@
         [self.dataViewController presentViewController:alert animated:YES completion:nil];
         return;
     }
-    if (indexPath.section == 0 && indexPath.row == 4) {
+    if (indexPath.section == 0 && indexPath.row == 1) {
         if (!self.appData.appStoreVendable) return;
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"重置权限" message:@"这将重置此应用访问通讯录、照片、相机等内容的权限。下次使用相关功能时，应用会重新请求授权。" preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
@@ -246,7 +208,7 @@
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
     if (section == 0) {
         ADTitleSectionHeaderView *header = [tableView dequeueReusableHeaderFooterViewWithIdentifier:ADTitleSectionHeaderView.reuseIdentifier];
-        [header configureBackHeaderWithTitle:@"更多信息"];
+        [header configureBackHeaderWithTitle:@"更多设置"];
         header.delegate = self;
         return header;
     } else {

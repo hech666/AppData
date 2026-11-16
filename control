@@ -1,6 +1,6 @@
 Package: com.fouadraheb.appdata
 Name: AppData 中文版
-Version: 1.3.6+zh.versions4
+Version: 1.3.6+zh.versions5
 Description: 中文应用数据管理，支持 App Store 历史版本选择与安装
 Section: Tweaks
 Architecture: iphoneos-arm64e

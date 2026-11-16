@@ -11,6 +11,8 @@
 #import "ADActionsBarView.h"
 #import "ADTitleSectionHeaderView.h"
 #import "ADVersionController.h"
+#import "ADChoicyBridge.h"
+#import "ADRootHideBridge.h"
 
 @implementation ADMainDataSource
 
@@ -18,8 +20,55 @@
     if (self = [super init]) {
         self.appData = data;
         self.dataViewController = dataViewController;
+        // RootHide publishes no reload notification; refresh when returning to SpringBoard.
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(adChoicyChanged:) name:UIApplicationDidBecomeActiveNotification object:nil];
+        [ADChoicyBridge startObserving];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(adChoicyChanged:) name:ADChoicySettingsChangedNotification object:nil];
     }
     return self;
+}
+
+- (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
+
+- (void)adChoicyChanged:(NSNotification *)notification {
+    [self.dataViewController.tableView reloadData];
+}
+
+- (void)adChoicyToggleChanged:(UISwitch *)sender {
+    BOOL disabled = sender.on;
+    sender.enabled = NO;
+    NSString *identifier = self.appData.bundleIdentifier;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSError *error = nil;
+        BOOL ok = [ADChoicyBridge setInjectionDisabled:disabled forIdentifier:identifier error:&error];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.dataViewController.tableView reloadData];
+            if (!ok) {
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Choicy 同步失败" message:error.localizedDescription ?: @"未能保存设置，请重试。" preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
+                [self.dataViewController presentViewController:alert animated:YES completion:nil];
+            }
+        });
+    });
+}
+
+- (void)adRootHideToggleChanged:(UISwitch *)sender {
+    BOOL enabled = sender.on;
+    sender.enabled = NO;
+    NSString *identifier = self.appData.bundleIdentifier;
+    NSString *bundlePath = self.appData.bundleURL.path;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSError *error = nil;
+        BOOL ok = [ADRootHideBridge setBlacklisted:enabled forIdentifier:identifier bundlePath:bundlePath error:&error];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.dataViewController.tableView reloadData];
+            if (!ok) {
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"RootHide 同步失败" message:error.localizedDescription ?: @"未能保存设置。" preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
+                [self.dataViewController presentViewController:alert animated:YES completion:nil];
+            }
+        });
+    });
 }
 
 #pragma mark - UITableViewDataSource
@@ -40,7 +89,7 @@
     } else if ([self isAppGroupsSection:section]) {
         return self.appData.appGroups.count;
     } else if ([self isManageSection:section]) {
-        return 2;
+        return 4;
     }
     return 0;
 }
@@ -254,6 +303,41 @@
                 }];
             }
             return cell;
+        } else if (indexPath.row == 3) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADRootHideMainCell"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"ADRootHideMainCell"];
+            cell.backgroundColor = UIColor.clearColor;
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            [ADAppearance applyStylesToCell:cell];
+            cell.textLabel.text = @"RootHide 黑名单";
+            NSError *readError = nil, *editError = nil;
+            UISwitch *toggle = [UISwitch new];
+            toggle.on = [ADRootHideBridge blacklistedForIdentifier:self.appData.bundleIdentifier error:&readError];
+            BOOL editable = [ADRootHideBridge canEditIdentifier:self.appData.bundleIdentifier bundlePath:self.appData.bundleURL.path error:&editError];
+            toggle.enabled = self.appData.isApplication && editable && !readError;
+            toggle.accessibilityLabel = @"RootHide 黑名单，与管理器配置同步";
+            cell.detailTextLabel.text = editError.localizedDescription ?: readError.localizedDescription ?: @"与管理器同步；更改后重新启动目标应用";
+            [toggle addTarget:self action:@selector(adRootHideToggleChanged:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = toggle;
+            return cell;
+        } else if (indexPath.row == 2) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADChoicyMainCell"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"ADChoicyMainCell"];
+            cell.backgroundColor = UIColor.clearColor;
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            [ADAppearance applyStylesToCell:cell];
+
+            cell.textLabel.text = @"禁止插件注入";
+            NSError *error = nil;
+            BOOL available = [ADChoicyBridge isAvailable];
+            UISwitch *toggle = [UISwitch new];
+            toggle.on = [ADChoicyBridge injectionDisabledForIdentifier:self.appData.bundleIdentifier error:&error];
+            toggle.enabled = available && !error && self.appData.isApplication && ![self.appData.bundleIdentifier isEqual:@"com.apple.Preferences"] && ![self.appData.bundleIdentifier isEqual:@"com.apple.springboard"];
+            toggle.accessibilityLabel = @"禁止当前应用插件注入，与 Choicy 同步";
+            cell.detailTextLabel.text = !available ? @"需安装 Choicy" : (error ? @"请先检查 Choicy 配置" : @"与 Choicy 同步");
+            [toggle addTarget:self action:@selector(adChoicyToggleChanged:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = toggle;
+            return cell;
         } else if (indexPath.row == 1) {
             UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"MoreInfoCellIdentifier"];
             if (!cell) {
@@ -261,7 +345,7 @@
                 cell.backgroundColor = [UIColor clearColor];
             }
             cell.accessoryView = [ADAppearance.sharedInstance tableCellChevronImageView];
-            cell.textLabel.text = @"更多信息";
+            cell.textLabel.text = @"更多设置";
             [ADAppearance applyStylesToCell:cell];
             return cell;
         }
@@ -292,11 +376,11 @@
 
 - (NSString *)titleForHeaderInSection:(NSInteger)section {
     if ([self isContainersSection:section]) {
-        return self.appData.isApplication ? @"应用目录" : nil;
+        return nil;
     } else if ([self isAppGroupsSection:section]) {
         return !self.appData.appGroups || self.appData.appGroups.count == 0 ? nil : @"应用群组";
     } else if ([self isManageSection:section]) {
-        return @"管理";
+        return nil;
     }
     return nil;
 }
@@ -314,6 +398,7 @@
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
+    if ([self isManageSection:section] || [self isContainersSection:section]) return CGFLOAT_MIN;
     return 25;
 }
 

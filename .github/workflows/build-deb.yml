@@ -27,6 +27,8 @@ jobs:
         run: python3 Tests/check_icons.py
       - name: Test theme state and file preservation
         run: python3 Tests/check_themes.py
+      - name: Test RootHide shared configuration
+        run: python3 Tests/check_roothide.py
       - name: Prepare resources and compile entire package
         run: |
           python3 BuildPrepare.py
