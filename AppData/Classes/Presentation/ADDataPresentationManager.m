@@ -48,7 +48,7 @@
     if (self = [super init]) {
         self.animationDuration = 0.25;
         
-        self.screenPercentage = 66.66;
+        self.screenPercentage = 66.66 * (2.0 / 3.0);
         
         self.direction = ADDataPresentationDirectionBottom;
         

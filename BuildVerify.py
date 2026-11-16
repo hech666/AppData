@@ -1,7 +1,7 @@
 import pathlib,struct,hashlib,plistlib,json,subprocess
 root=pathlib.Path('/tmp/appdata-package')
 results=[]
-for relative in ['Library/MobileSubstrate/DynamicLibraries/AppData.dylib','Library/PreferenceBundles/AppDataPrefs.bundle/AppDataPrefs']:
+for relative in ['Library/MobileSubstrate/DynamicLibraries/AppData.dylib']:
  p=root/relative
  assert p.is_file(),relative
  b=p.read_bytes(); assert struct.unpack_from('>I',b)[0]==0xcafebabe
@@ -33,9 +33,9 @@ for relative in ['Library/MobileSubstrate/DynamicLibraries/AppData.dylib','Libra
   slices.append({'subtype':hex(sub),'verified_page_hashes':checked})
  assert {int(s['subtype'],16)&0xffffff for s in slices}=={0,2}
  results.append({'file':relative,'sha256':hashlib.sha256(b).hexdigest(),'slices':slices})
-info=plistlib.loads((root/'Library/PreferenceBundles/AppDataPrefs.bundle/Info.plist').read_bytes())
-assert info['CFBundleExecutable']=='AppDataPrefs' and info['NSPrincipalClass']=='ADPreferencesController'
-assert '$(' not in str(info)
+assert not (root/'Library/PreferenceBundles').exists()
+assert not (root/'Library/PreferenceLoader').exists()
+assert (root/'Library/Application Support/AppData/Resources.bundle/VersionControl.png').is_file()
 assert (root/'Library/Application Support/AppData/Resources.bundle/AppDataIcon@2x.png').is_file()
 pathlib.Path('packages/verification.json').write_text(json.dumps(results,indent=2))
 print(json.dumps(results,indent=2))

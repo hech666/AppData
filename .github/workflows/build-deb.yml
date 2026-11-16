@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'AppData/**'
-      - 'AppDataPrefs/**'
       - 'Makefile'
       - 'Build*'
       - 'control'
@@ -36,7 +35,6 @@ jobs:
           mkdir /tmp/appdata-package
           dpkg-deb -x packages/*.deb /tmp/appdata-package
           find /tmp/appdata-package -type f -name AppData.dylib -exec lipo -info {} \;
-          find /tmp/appdata-package -type f -name AppDataPrefs -exec lipo -info {} \;
           dpkg-deb -I packages/*.deb
           dpkg-deb -c packages/*.deb
           python3 BuildVerify.py

@@ -102,7 +102,8 @@
                 frame.origin.x = self.containerView.frame.size.width * (1 - (self.configuration.screenPercentage / 100));
                 break;
             case ADDataPresentationDirectionBottom:
-                frame.origin.y = self.containerView.frame.size.height * (1 - (self.configuration.screenPercentage / 100));
+                frame.origin.x = (self.containerView.bounds.size.width - frame.size.width) / 2.0;
+                frame.origin.y = self.containerView.bounds.size.height - frame.size.height;
                 break;
             default:
                 frame.origin = CGPointZero;
@@ -122,8 +123,9 @@
         case ADDataPresentationDirectionRight:
             return CGSizeMake(parentSize.width * (self.configuration.screenPercentage / 100), parentSize.height);
         case ADDataPresentationDirectionTop:
-        case ADDataPresentationDirectionBottom:
             return CGSizeMake(parentSize.width, parentSize.height * (self.configuration.screenPercentage / 100));
+        case ADDataPresentationDirectionBottom:
+            return CGSizeMake(parentSize.width * 0.94, parentSize.height * (self.configuration.screenPercentage / 100));
         default:
             return CGSizeZero;
     }

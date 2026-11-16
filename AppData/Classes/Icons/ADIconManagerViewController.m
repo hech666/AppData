@@ -29,7 +29,7 @@
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section { return section == 0 ? (self.adIconBundleID ?: @"图标覆盖") : @"批量主题"; }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (!section) return @"覆盖保存在插件配置中，不修改应用包。关闭开关保留图片；恢复会移除覆盖。时钟、日历的动态图标不支持替换。";
-    return [NSString stringWithFormat:@"已保存 %lu 个覆盖。ZIP 内 PNG 文件名必须是 Bundle ID（如 com.example.app.png），支持子目录。导入合并并覆盖同名项目，最多 256 张。更改后自动刷新；若系统仍显示缓存，请重新进入桌面或手动注销。",(unsigned long)ADIconOverrideStore.sharedStore.count];
+    return [NSString stringWithFormat:@"已保存 %lu 个覆盖。ZIP 支持 BundleID.png、BundleID-large.png 以及 @2x/@3x 后缀，支持 IconBundles 子目录。非应用素材和时钟、日历会跳过。导入合并并覆盖同名项目，最多 256 张。更改后自动刷新；若系统仍显示缓存，请重新进入桌面或手动注销。",(unsigned long)ADIconOverrideStore.sharedStore.count];
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
@@ -87,7 +87,7 @@
         PHPickerViewController *picker = [[PHPickerViewController alloc] initWithConfiguration:config]; picker.delegate = self;
         [self presentViewController:picker animated:YES completion:nil];
     } else if (path.section && !path.row) {
-        [self adIconConfirm:@"导入会替换同一 Bundle ID 已保存的覆盖，其他项目保留。ZIP 内必须使用 BundleID.png 命名。" action:^{
+        [self adIconConfirm:@"导入会替换同一 Bundle ID 已保存的覆盖，其他项目保留。支持 BundleID.png、-large 和 @2x/@3x 后缀；非应用素材自动跳过。" action:^{
             UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.zip-archive"] inMode:UIDocumentPickerModeOpen];
             picker.delegate = self; picker.allowsMultipleSelection = NO;
             [self presentViewController:picker animated:YES completion:nil];

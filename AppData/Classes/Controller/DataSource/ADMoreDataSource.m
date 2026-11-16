@@ -9,6 +9,8 @@
 #import "ADMainDataSource.h"
 #import "ADAppData.h"
 #import "ADDataViewController.h"
+#import "ADIconOverrides.h"
+#import "ADSettings.h"
 
 @interface ADMoreDataSource ()
 @property (nonatomic, assign) NSInteger expandedSection;
@@ -48,7 +50,7 @@
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section == 0) {
-        return 3;
+        return 7;
     } else {
         return self.expandedSection == section ? [self numberOfRowsInSection:section] : 0;
     }
@@ -66,6 +68,9 @@
             cell.textLabel.font = [UIFont systemFontOfSize:15];
             cell.detailTextLabel.font = [UIFont systemFontOfSize:13];
         }
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.accessoryType = UITableViewCellAccessoryNone;
+        cell.accessoryView = nil;
         [ADAppearance applyStylesToCell:cell];
         if (indexPath.row == 0) {
             cell.textLabel.text = @"内部版本号";
@@ -76,6 +81,31 @@
         } else if (indexPath.row == 2) {
             cell.textLabel.text = @"构建平台版本";
             cell.detailTextLabel.text = [NSString stringWithFormat:@"%@",self.appData.platformVersion];
+        } else if (indexPath.row == 3) {
+            cell.textLabel.text = @"图标管理";
+            cell.detailTextLabel.text = @"批量导入或恢复图标";
+            cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        } else if (indexPath.row == 4) {
+            cell.textLabel.text = @"重置权限";
+            cell.detailTextLabel.text = self.appData.appStoreVendable ? @"重新请求应用授权" : @"此应用不支持";
+            cell.selectionStyle = self.appData.appStoreVendable ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
+            cell.accessoryType = self.appData.appStoreVendable ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;
+        } else if (indexPath.row == 5) {
+            cell.textLabel.text = @"上滑图标";
+            cell.detailTextLabel.text = @"向上滑动应用图标打开面板";
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            cell.accessoryType = UITableViewCellAccessoryNone;
+            UISwitch *toggle = [[UISwitch alloc] init];
+            toggle.on = [ADSettings swipeUpEnabled];
+            [toggle addTarget:self action:@selector(adSwipeToggleChanged:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = toggle;
+        } else if (indexPath.row == 6) {
+            cell.textLabel.text = @"外观";
+            cell.detailTextLabel.text = [ADSettings titleForAppearanceStyle:[ADSettings appearanceStyle]];
+            cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+            cell.accessoryView = nil;
         }
         return cell;
     } else {
@@ -104,6 +134,11 @@
     return nil;
 }
 
+- (void)adSwipeToggleChanged:(UISwitch *)sender {
+    [ADSettings setObject:@(sender.on) forKey:kSwipeUpEnabled];
+    [[NSNotificationCenter defaultCenter] postNotificationName:kAppDataSwipeUpPreferencesChangedNotification object:nil];
+}
+
 - (UIImage *)makeThumbnailOfSize:(CGSize)size ofImage:(UIImage *)image {
     UIGraphicsBeginImageContextWithOptions(size, NO, UIScreen.mainScreen.scale);
     [image drawInRect:CGRectMake(0, 0, size.width, size.height)];
@@ -124,6 +159,39 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if (indexPath.section == 0 && indexPath.row == 3) {
+        [ADIconManagerViewController presentFromController:self.dataViewController bundleIdentifier:nil];
+        return;
+    }
+    if (indexPath.section == 0 && indexPath.row == 6) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"外观" message:@"选择面板显示风格" preferredStyle:UIAlertControllerStyleAlert];
+        NSArray<NSString *> *values = [ADSettings appearanceValues];
+        NSArray<NSString *> *titles = [ADSettings appearanceTitles];
+        for (NSUInteger i = 0; i < values.count; i++) {
+            NSString *value = values[i];
+            [alert addAction:[UIAlertAction actionWithTitle:titles[i] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                [ADSettings setInteger:value.integerValue forKey:kAppearance];
+                [self.dataViewController.tableView reloadData];
+                [tableView reloadData];
+                [self.dataViewController.view setNeedsLayout];
+            }]];
+        }
+        [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+        [self.dataViewController presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+    if (indexPath.section == 0 && indexPath.row == 4) {
+        if (!self.appData.appStoreVendable) return;
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"重置权限" message:@"这将重置此应用访问通讯录、照片、相机等内容的权限。下次使用相关功能时，应用会重新请求授权。" preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+        [alert addAction:[UIAlertAction actionWithTitle:@"重置" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+            [self.appData resetAllAppPermissions];
+            [[UINotificationFeedbackGenerator new] notificationOccurred:UINotificationFeedbackTypeSuccess];
+            [tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
+        }]];
+        [self.dataViewController presentViewController:alert animated:YES completion:nil];
+        return;
+    }
     if (indexPath.section == 5) {
         NSString *entitlementIdentifier = [self.appData.entitlementsIdentifiers objectAtIndex:indexPath.row];
         NSString *detailText = [NSString stringWithFormat:@"%@",[self.appData.entitlements objectForKey:entitlementIdentifier]];

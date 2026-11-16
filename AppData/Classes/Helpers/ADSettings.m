@@ -38,7 +38,7 @@
 + (NSDictionary *)defaultsDictionary {
     return @{
         kSwipeUpEnabled:            @(YES),
-        kForceTouchMenuEnabled:     @(NO),
+        kForceTouchMenuEnabled:     @(YES),
         kAppearance:                @(ADAppearanceStyleDark)
     };
 }
@@ -70,7 +70,7 @@
 }
 
 + (BOOL)forceTouchMenuEnabled {
-    return [self boolForKey:kForceTouchMenuEnabled];
+    return YES;
 }
 
 #pragma mark - Appearance

@@ -45,7 +45,7 @@
     view.actionImageView = [[UIImageView alloc] init];
     view.actionImageView.userInteractionEnabled = NO;
     [view.actionImageView setImage:[image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]];
-    view.actionImageView.contentMode = UIViewContentModeScaleAspectFill;
+    view.actionImageView.contentMode = UIViewContentModeScaleAspectFit;
     view.actionImageView.translatesAutoresizingMaskIntoConstraints = NO;
     [view addSubview:view.actionImageView];
     [view.actionImageView.topAnchor constraintEqualToAnchor:view.topAnchor constant:5].active = YES;
@@ -76,7 +76,10 @@
     view.nameLabel.userInteractionEnabled = NO;
     view.nameLabel.textAlignment = NSTextAlignmentCenter;
     view.nameLabel.font = [UIFont systemFontOfSize:11];
-    view.nameLabel.numberOfLines = 2;
+    view.nameLabel.numberOfLines = 1;
+    view.nameLabel.adjustsFontSizeToFitWidth = YES;
+    view.nameLabel.minimumScaleFactor = 0.62;
+    view.nameLabel.baselineAdjustment = UIBaselineAdjustmentAlignCenters;
     [view.nameLabel setText:title];
     view.nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [view addSubview:view.nameLabel];
@@ -84,8 +87,9 @@
     [view.nameLabel.leadingAnchor constraintEqualToAnchor:view.leadingAnchor constant:2].active = YES;
     [view.nameLabel.trailingAnchor constraintEqualToAnchor:view.trailingAnchor constant:-2].active = YES;
 
-    if (detail && detail.length > 0) {
-        [view.nameLabel.heightAnchor constraintEqualToAnchor:view.heightAnchor multiplier:0.35].active = YES;
+    [view.nameLabel.heightAnchor constraintEqualToAnchor:view.heightAnchor multiplier:0.30].active = YES;
+    {
+
         
         view.detailLabel = [[UILabel alloc] init];
         view.detailLabel.tag = 3;
@@ -99,8 +103,6 @@
         [view.detailLabel.leadingAnchor constraintEqualToAnchor:view.leadingAnchor constant:2].active = YES;
         [view.detailLabel.trailingAnchor constraintEqualToAnchor:view.trailingAnchor constant:-2].active = YES;
         [view.detailLabel.bottomAnchor constraintEqualToAnchor:view.bottomAnchor constant:-5].active = YES;
-    } else {
-        [view.nameLabel.bottomAnchor constraintEqualToAnchor:view.bottomAnchor constant:-5].active = YES;
     }
     
     [self addArrangedSubview:view];
@@ -108,7 +110,7 @@
 
 - (void)setItemEnabled:(BOOL)enabled atIndex:(NSInteger)index {
     ADActionButton *button = [self.arrangedSubviews objectAtIndex:index];
-    [button setEnabled:NO];
+    [button setEnabled:enabled];
     button.actionImageView.alpha = enabled ? 1.0 : 0.5;
     button.nameLabel.alpha = enabled ? 1.0 : 0.5;
     button.detailLabel.alpha = enabled ? 1.0 : 0.5;

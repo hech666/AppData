@@ -11,9 +11,11 @@
 #import "ADTitleSectionHeaderView.h"
 #import "ADMainDataSource.h"
 #import "ADMoreDataSource.h"
+#import "ADIconOverrides.h"
+#import <PhotosUI/PhotosUI.h>
 #import <objc/runtime.h>
 
-@interface ADDataViewController () <UIGestureRecognizerDelegate>
+@interface ADDataViewController () <UIGestureRecognizerDelegate, PHPickerViewControllerDelegate>
 
 @property (nonatomic, strong) ADDataPresentationManager *presentationManager;
 
@@ -35,6 +37,7 @@
 @property (nonatomic, assign) BOOL isCopyingIdentifier;
 
 @property (nonatomic, strong) UIScreenEdgePanGestureRecognizer *screenEdgeGesture;
+@property (nonatomic, assign) BOOL adIconPickerBusy;
 
 @end
 
@@ -172,6 +175,46 @@
     }
 }
 
+- (void)adIconDoubleTapped:(UITapGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateEnded || self.adIconPickerBusy || self.presentedViewController || !self.appData.bundleIdentifier) return;
+    if ([self.appData.bundleIdentifier isEqual:@"com.apple.mobiletimer"] || [self.appData.bundleIdentifier isEqual:@"com.apple.mobilecal"]) {
+        [self.class showAlertFromViewController:self title:@"图标图片" message:@"时钟和日历使用动态图标，当前不支持替换。" cancelTitle:@"好"];
+        return;
+    }
+    PHPickerConfiguration *configuration = [[PHPickerConfiguration alloc] init];
+    configuration.selectionLimit = 1;
+    configuration.filter = [PHPickerFilter imagesFilter];
+    PHPickerViewController *picker = [[PHPickerViewController alloc] initWithConfiguration:configuration];
+    picker.delegate = self;
+    self.adIconPickerBusy = YES;
+    [self presentViewController:picker animated:YES completion:nil];
+}
+
+- (void)picker:(PHPickerViewController *)picker didFinishPicking:(NSArray<PHPickerResult *> *)results {
+    [picker dismissViewControllerAnimated:YES completion:^{
+        NSItemProvider *provider = results.firstObject.itemProvider;
+        if (!provider) { self.adIconPickerBusy = NO; return; }
+        NSString *identifier = self.appData.bundleIdentifier;
+        [provider loadFileRepresentationForTypeIdentifier:@"public.image" completionHandler:^(NSURL *url, NSError *providerError) {
+            NSError *error = providerError; BOOL saved = NO;
+            NSNumber *size = nil;
+            if (url && [url getResourceValue:&size forKey:NSURLFileSizeKey error:&error] && size.unsignedLongLongValue <= 16*1024*1024) {
+                NSData *data = [NSData dataWithContentsOfURL:url options:NSDataReadingMappedIfSafe error:&error];
+                if (data) saved = [[ADIconOverrideStore sharedStore] saveImageData:data forBundleIdentifier:identifier error:&error];
+            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.adIconPickerBusy = NO;
+                if (saved) {
+                    UIImage *image = [[ADIconOverrideStore sharedStore] imageForBundleIdentifier:identifier size:CGSizeMake(58,58) scale:UIScreen.mainScreen.scale radius:12];
+                    if (image) self.iconImageView.image = image;
+                }
+                NSString *message = saved ? ([[ADIconOverrideStore sharedStore] enabled] ? @"已更换图标并请求刷新桌面。" : @"图片已保存，请在更多信息的图标管理中开启图标覆盖。") : (error.localizedDescription ?: @"无法读取所选图片，或图片超过 16 MB。");
+                [self.class showAlertFromViewController:self title:@"图标图片" message:message cancelTitle:@"好"];
+            });
+        }];
+    }];
+}
+
 - (void)screenEdgeSwiped:(UIScreenEdgePanGestureRecognizer *)screenGesture {
     [self switchTableViews];
 }
@@ -193,6 +236,7 @@
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if (self.adIconPickerBusy || [touch.view isDescendantOfView:self.iconImageView]) return NO;
     if ([touch.view isKindOfClass:NSClassFromString(@"UITableViewCellContentView")]) {
         return NO;
     }
@@ -231,7 +275,8 @@
     self.contentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.contentView.translatesAutoresizingMaskIntoConstraints = NO;
     self.contentView.clipsToBounds = YES;
-    self.contentView.layer.cornerRadius = 15;
+    self.contentView.layer.cornerRadius = 35;
+    self.contentView.layer.cornerCurve = kCACornerCurveContinuous;
     self.contentView.layer.maskedCorners = kCALayerMaxXMinYCorner | kCALayerMinXMinYCorner;
     [self.view addSubview:self.contentView];
     [self.contentView.topAnchor constraintEqualToAnchor:self.view.topAnchor].active = YES;
@@ -266,6 +311,13 @@
     self.iconImageView = [[UIImageView alloc] init];
     [self.iconImageView setTranslatesAutoresizingMaskIntoConstraints:NO];
     [containerView addSubview:self.iconImageView];
+    UITapGestureRecognizer *iconDoubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(adIconDoubleTapped:)];
+    iconDoubleTap.numberOfTapsRequired = 2;
+    iconDoubleTap.cancelsTouchesInView = NO;
+    self.iconImageView.userInteractionEnabled = YES;
+    [self.iconImageView addGestureRecognizer:iconDoubleTap];
+
+
     [self.iconImageView.leadingAnchor constraintEqualToAnchor:containerView.leadingAnchor constant:15].active = YES;
     [self.iconImageView.topAnchor constraintEqualToAnchor:containerView.topAnchor constant:15].active = YES;
     [self.iconImageView.widthAnchor constraintEqualToConstant:58].active = YES;

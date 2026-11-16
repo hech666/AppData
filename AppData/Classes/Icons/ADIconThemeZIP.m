@@ -24,7 +24,8 @@ NSDictionary<NSString *, NSData *> *ADIconReadThemeZIP(NSData *data, NSError **e
         return ADIconZIPError(error,@"不支持分卷、ZIP64 或超过 4096 项的主题。");
     NSUInteger cursor = cdOffset, limit = cdOffset + cdSize, total = 0;
     NSMutableDictionary *result = [NSMutableDictionary new];
-    NSMutableSet *foldedIDs = [NSMutableSet new];
+    NSMutableDictionary *variants = [NSMutableDictionary new];
+    NSMutableDictionary *priorities = [NSMutableDictionary new];
     for (NSUInteger index = 0; index < count; index++) {
         if (cursor > limit || limit-cursor < 46 || ADIconU32(p+cursor) != 0x02014b50) return ADIconZIPError(error,@"ZIP 中央目录损坏。");
         const uint8_t *entry = p+cursor;
@@ -41,9 +42,29 @@ NSDictionary<NSString *, NSData *> *ADIconReadThemeZIP(NSData *data, NSError **e
             return ADIconZIPError(error,@"ZIP 包含不安全路径或符号链接。");
         if ([name hasSuffix:@"/"] || [parts containsObject:@"__MACOSX"] || [name.lastPathComponent hasPrefix:@"."] || ![name.pathExtension.lowercaseString isEqual:@"png"]) continue;
         NSString *identifier = name.lastPathComponent.stringByDeletingPathExtension;
-        if (!ADIconValidBundleIdentifier(identifier)) return ADIconZIPError(error,[NSString stringWithFormat:@"PNG 文件名必须是 Bundle ID：%@",name]);
-        if ([foldedIDs containsObject:identifier.lowercaseString]) return ADIconZIPError(error,[NSString stringWithFormat:@"主题存在重复 Bundle ID：%@",identifier]);
-        if (flags & (1 | 64) || (method != 0 && method != 8) || !expanded || expanded > 16*1024*1024 || total+expanded > 128*1024*1024 || result.count >= 256)
+        // IconBundles conventions: bundle-large.png and bundle@2x/@3x.png.
+        // Parse both suffix orders without changing the identifier's letter case.
+        NSInteger scaleRank = 0; BOOL large = NO;
+        for (NSUInteger pass = 0; pass < 2; pass++) {
+            if (!scaleRank && ([identifier hasSuffix:@"@2x"] || [identifier hasSuffix:@"@3x"])) {
+                scaleRank = [identifier hasSuffix:@"@3x"] ? 3 : 2;
+                identifier = [identifier substringToIndex:identifier.length - 3];
+            }
+            if (!large && [identifier hasSuffix:@"-large"]) {
+                large = YES; identifier = [identifier substringToIndex:identifier.length - 6];
+            }
+        }
+        // Theme decorations (e.g. ClockIconBackgroundSquare) are not application IDs.
+        if (!ADIconValidBundleIdentifier(identifier)) continue;
+        if ([identifier isEqual:@"com.apple.mobiletimer"] || [identifier isEqual:@"com.apple.mobilecal"]) continue;
+        NSString *folded = identifier.lowercaseString;
+        NSString *variant = [NSString stringWithFormat:@"%d:%ld", large, (long)scaleRank];
+        NSMutableSet *seen = variants[folded];
+        if ([seen containsObject:variant]) return ADIconZIPError(error,[NSString stringWithFormat:@"主题存在重复图标变体：%@",identifier]);
+        if (!seen) { seen = [NSMutableSet new]; variants[folded] = seen; }
+        [seen addObject:variant];
+        NSInteger priority = (large ? 10 : 0) + scaleRank;
+        if (flags & (1 | 64) || (method != 0 && method != 8) || !expanded || expanded > 16*1024*1024 || total+expanded > 128*1024*1024 || (!priorities[folded] && result.count >= 256))
             return ADIconZIPError(error,@"图标加密、压缩方式不支持或超过限制（256 张、每张 16 MB、合计 128 MB）。");
         if (offset > cdOffset || cdOffset-offset < 30 || ADIconU32(p+offset) != 0x04034b50) return ADIconZIPError(error,@"ZIP 本地文件头损坏。");
         const uint8_t *local = p+offset;
@@ -64,9 +85,15 @@ NSDictionary<NSString *, NSData *> *ADIconReadThemeZIP(NSData *data, NSError **e
         }
         static const uint8_t magic[] = {137,80,78,71,13,10,26,10};
         if (crc32(0,output.bytes,(uInt)output.length) != crc || output.length < 8 || memcmp(output.bytes,magic,8)) return ADIconZIPError(error,[NSString stringWithFormat:@"PNG 签名或 CRC 校验失败：%@",name]);
-        result[identifier] = output; [foldedIDs addObject:identifier.lowercaseString]; total += expanded;
+        NSDictionary *previous = priorities[folded];
+        if (!previous || priority > [previous[@"rank"] integerValue]) {
+            if (previous) [result removeObjectForKey:previous[@"identifier"]];
+            result[identifier] = output;
+            priorities[folded] = @{@"rank":@(priority), @"identifier":identifier};
+        }
+        total += expanded;
     }
     if (cursor != limit) return ADIconZIPError(error,@"ZIP 中央目录长度不一致。");
-    if (!result.count) return ADIconZIPError(error,@"未找到图标。请将 PNG 命名为 com.example.app.png，可放在主题子目录中。");
+    if (!result.count) return ADIconZIPError(error,@"未找到可用应用图标。支持 BundleID.png、BundleID-large.png 及 @2x/@3x 后缀，可放在 IconBundles 子目录中；时钟、日历及非应用素材会跳过。");
     return result.copy;
 }

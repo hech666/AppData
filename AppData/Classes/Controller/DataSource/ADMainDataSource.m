@@ -11,7 +11,6 @@
 #import "ADActionsBarView.h"
 #import "ADTitleSectionHeaderView.h"
 #import "ADVersionController.h"
-#import "ADIconOverrides.h"
 
 @implementation ADMainDataSource
 
@@ -41,7 +40,7 @@
     } else if ([self isAppGroupsSection:section]) {
         return self.appData.appGroups.count;
     } else if ([self isManageSection:section]) {
-        return self.appData.appStoreVendable ? 4 : 3;
+        return 2;
     }
     return 0;
 }
@@ -103,7 +102,7 @@
                 __weak ADActionsBarView *weakActionsBar = actionsBar;
                 
                 // Clear Badge
-                [actionsBar addItemWithTitle:@"修改\n角标"
+                [actionsBar addItemWithTitle:@"修改角标"
                                       detail:[NSString stringWithFormat:@"%td",[self.appData appBadgeCount]]
                                        image:[ADHelper imageNamed:@"ClearBadge"]
                                      handler:^{
@@ -148,7 +147,7 @@
                 }];
                 
                 // Clear Caches
-                [actionsBar addItemWithTitle:@"清理\n缓存"
+                [actionsBar addItemWithTitle:@"清理缓存"
                                 detail:@"正在加载…"
                                  image:[ADHelper imageNamed:@"ClearCache"]
                                      handler:^{
@@ -170,7 +169,7 @@
                 }];
                 
                 // Clear App Data
-                [actionsBar addItemWithTitle:@"清除应用数据"
+                [actionsBar addItemWithTitle:@"清除数据"
                                       detail:@"正在加载…"
                                        image:[ADHelper imageNamed:@"ClearData"]
                                      handler:^{
@@ -195,26 +194,19 @@
                     }
                 }];
                 
-                // Reset Permissions
-                [actionsBar addItemWithTitle:@"重置权限"
-                                      detail:[NSString stringWithFormat:@"%td",[self.appData getPermissions].count]
-                                       image:[ADHelper imageNamed:@"ResetPermissions"]
+                // Version selection
+                [actionsBar addItemWithTitle:@"软件升降级"
+                                      detail:self.appData.version
+                                       image:[ADHelper imageNamed:@"VersionControl"]
                                      handler:^{
-                    if (self.appData.appStoreVendable) {
-                        [self showDestructiveConfirmationAlertWithTitle:@"重置权限" message:@"这将重置此应用访问通讯录、照片、相机等内容的权限。\n下次使用相关功能时，应用会重新请求授权。" confirmTitle:@"重置" confirmHandler:^{
-                            NSInteger itemIndex = 3;
-                            [self.appData resetAllAppPermissions];
-                            [weakActionsBar setDetail:@"已重置" forItemAtIndex:itemIndex];
-                            [[UINotificationFeedbackGenerator new] notificationOccurred:UINotificationFeedbackTypeSuccess];
-                            DISPATCH_AFTER(0.5, {
-                               [weakActionsBar setDetail:[NSString stringWithFormat:@"%td",[self.appData getPermissions].count] forItemAtIndex:itemIndex];
-                            });
-                        }];
-                    }
+                    ADVersionController *versions = [[ADVersionController alloc] initWithBundleIdentifier:self.appData.bundleIdentifier bundleURL:self.appData.bundleURL currentVersion:self.appData.version];
+                    UINavigationController *navigation = [[UINavigationController alloc] initWithRootViewController:versions];
+                    navigation.modalPresentationStyle = UIModalPresentationFullScreen;
+                    [self.dataViewController presentViewController:navigation animated:YES completion:nil];
                 }];
-                
+
                 // Offload App
-                [actionsBar addItemWithTitle:@"卸载\n应用"
+                [actionsBar addItemWithTitle:@"卸载应用"
                                       detail:nil
                                        image:[ADHelper imageNamed:@"OffloadApp"]
                                      handler:^{
@@ -250,23 +242,6 @@
                     [actionsBar hideLoadingIndicatorForItemAtIndex:2];
                 }];
             }
-            return cell;
-        } else if (indexPath.row == 2) {
-            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADIconEntry"];
-            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"ADIconEntry"];
-            cell.backgroundColor = UIColor.clearColor;
-            cell.textLabel.text = @"修改图标 / 批量导入";
-            cell.accessoryView = [ADAppearance.sharedInstance tableCellChevronImageView];
-            [ADAppearance applyStylesToCell:cell];
-            return cell;
-        } else if (indexPath.row == 3) {
-            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADVersionEntry"];
-            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"ADVersionEntry"];
-            cell.backgroundColor = UIColor.clearColor;
-            cell.textLabel.text = @"软件升降级";
-            cell.detailTextLabel.text = self.appData.version;
-            cell.accessoryView = [ADAppearance.sharedInstance tableCellChevronImageView];
-            [ADAppearance applyStylesToCell:cell];
             return cell;
         } else if (indexPath.row == 1) {
             UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"MoreInfoCellIdentifier"];
@@ -340,13 +315,6 @@
     if ([self isManageSection:indexPath.section]) {
         if (indexPath.row == 1) {
             [self.dataViewController switchTableViews];
-        } else if (indexPath.row == 2) {
-            [ADIconManagerViewController presentFromController:self.dataViewController bundleIdentifier:self.appData.bundleIdentifier];
-        } else if (indexPath.row == 3 && self.appData.appStoreVendable) {
-            ADVersionController *versions = [[ADVersionController alloc] initWithBundleIdentifier:self.appData.bundleIdentifier bundleURL:self.appData.bundleURL currentVersion:self.appData.version];
-            UINavigationController *navigation = [[UINavigationController alloc] initWithRootViewController:versions];
-            navigation.modalPresentationStyle = UIModalPresentationFullScreen;
-            [self.dataViewController presentViewController:navigation animated:YES completion:nil];
         }
     } else if ([self isContainersSection:indexPath.section] || [self isAppGroupsSection:indexPath.section]) {
         [self didSelectContainerOrAppGroupSectionAtIndexPath:indexPath];
