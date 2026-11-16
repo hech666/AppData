@@ -33,23 +33,53 @@
 #pragma mark - Helpers
 
 + (void)openDirectoryAtURL:(NSURL *)url fromController:(UIViewController *)controller {
-    NSString *path = [url.path stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
-    if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"filza://"]]) {
-        NSURL *filzaURL = [NSURL URLWithString:[@"filza://view" stringByAppendingString:path]];
-        [[UIApplication sharedApplication] openURL:filzaURL options:@{} completionHandler:nil];
-    } else if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"ifile://"]]) {
-        NSURL *ifileURL = [NSURL URLWithString:[@"ifile://file://" stringByAppendingString:path]];
-        [[UIApplication sharedApplication] openURL:ifileURL options:@{} completionHandler:nil];
-    } else {
-        UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"AppData" message:@"Install Filza app to open the selected directory" preferredStyle:UIAlertControllerStyleAlert];
-        [alertController addAction:[UIAlertAction actionWithTitle:@"Okay" style:UIAlertActionStyleDefault handler:nil]];
-        [controller presentViewController:alertController animated:YES completion:nil];
+    NSString *path = url.path;
+    void (^showFailure)(NSString *) = ^(NSString *message) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"无法打开目录" message:message preferredStyle:UIAlertControllerStyleAlert];
+            if (path.length > 0) {
+                [alert addAction:[UIAlertAction actionWithTitle:@"复制路径" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                    [UIPasteboard generalPasteboard].string = path;
+                }]];
+            }
+            [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
+            [controller presentViewController:alert animated:YES completion:nil];
+        });
+    };
+    if (!url.isFileURL || !path.isAbsolutePath) {
+        showFailure(@"未能获取有效的本地目录路径。");
+        return;
     }
+
+    // Encode a filesystem path, not a query. Escape literal %, # and ? as well.
+    NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~/"];
+    NSString *encodedPath = [path stringByAddingPercentEncodingWithAllowedCharacters:allowed];
+    NSURL *filzaURL = encodedPath ? [NSURL URLWithString:[@"filza://view" stringByAppendingString:encodedPath]] : nil;
+    if (!filzaURL) {
+        showFailure(@"无法生成目录链接，请复制路径后在文件管理器中打开。");
+        return;
+    }
+    // Try the actual URL: canOpenURL can be restricted independently of openURL.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[UIApplication sharedApplication] openURL:filzaURL options:@{} completionHandler:^(BOOL success) {
+            if (success) return;
+            NSURL *iFileURL = [NSURL URLWithString:[@"ifile://file://" stringByAppendingString:encodedPath]];
+            if (!iFileURL) {
+                showFailure(@"系统未能打开 Filza。请确认 Filza 已正确安装，或复制路径手动打开。");
+                return;
+            }
+            [[UIApplication sharedApplication] openURL:iFileURL options:@{} completionHandler:^(BOOL fallbackSuccess) {
+                if (!fallbackSuccess) {
+                    showFailure(@"系统未能打开 Filza 或 iFile。请确认文件管理器已正确安装且支持 URL 跳转，或复制路径手动打开。");
+                }
+            }];
+        }];
+    });
 }
 
 + (SBSApplicationShortcutItem *)applicationShortcutItem {
     SBSApplicationShortcutItem *shortcutItem = [[NSClassFromString(@"SBSApplicationShortcutItem") alloc] init];
-    shortcutItem.localizedTitle = @"AppData";
+    shortcutItem.localizedTitle = @"应用数据";
     shortcutItem.type = kSBApplicationShortcutItemType;
     
     NSData *imageData = nil;

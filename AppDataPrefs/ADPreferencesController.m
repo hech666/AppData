@@ -61,16 +61,16 @@
     if (indexPath.section == 0) {
         ADHeaderTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:ADHeaderTableViewCell.reuseIdentifier];
         cell.titleLabel.text = @"AppData";
-        cell.detailLabel.text = @"View & Manage Apps Data from Homescreen";
+        cell.detailLabel.text = @"在主屏幕查看和管理应用数据";
         return cell;
     } else if (indexPath.section == 1) {
         if (indexPath.row == 0) {
             ADSwitchTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:ADSwitchTableViewCell.reuseIdentifier];
-            [cell configureWithTitle:@"Swipe Up" switchKey:kSwipeUpEnabled];
+            [cell configureWithTitle:@"上滑图标" switchKey:kSwipeUpEnabled];
             return cell;
         } else if (indexPath.row == 1) {
             ADSwitchTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:ADSwitchTableViewCell.reuseIdentifier];
-            [cell configureWithTitle:@"Force Touch Menu" switchKey:kForceTouchMenuEnabled];
+            [cell configureWithTitle:@"长按快捷菜单" switchKey:kForceTouchMenuEnabled];
             return cell;
         }
     } else if (indexPath.section == 2) {
@@ -78,7 +78,7 @@
         if (!cell) {
             cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"AppearanceCellIdentifier"];
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-            cell.textLabel.text = @"Appearance";
+            cell.textLabel.text = @"外观";
         }
         cell.detailTextLabel.text = [ADSettings titleForAppearanceStyle:[ADSettings integerForKey:kAppearance]];
         return cell;
@@ -87,7 +87,7 @@
         if (!cell) {
             cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"InfoCellIdentifier"];
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-            cell.textLabel.text = @"Info";
+            cell.textLabel.text = @"使用说明";
         }
         return cell;
     } else if (indexPath.section == 4) {
@@ -100,7 +100,7 @@
             cell.textLabel.text = @"Fouad Raheb";
             cell.detailTextLabel.text = @"Twitter";
         } else if (indexPath.row == 1) {
-            cell.textLabel.text = @"Source Code";
+            cell.textLabel.text = @"源代码";
             cell.detailTextLabel.text = @"GitHub";
         }
         return cell;
@@ -110,16 +110,16 @@
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     switch (section) {
-        case 1: return @"Activation";
+        case 1: return @"唤出方式";
         case 2: return nil;
-        case 4: return @"Developer";
+        case 4: return @"开发者";
         default: return nil;
     }
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     switch (section) {
-        case 1: return @"The popup can be activated by either swiping up on the app icon or through a button in the force touch menu";
+        case 1: return @"在应用图标上向上滑动，或点击长按快捷菜单中的“应用数据”，即可打开面板。";
         default: return nil;
     }
 }
@@ -138,7 +138,7 @@
     if (indexPath.section == 2) {
         UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
         ADSelectListTableViewController *listController = [[ADSelectListTableViewController alloc] initWithStyle:UITableViewStyleGrouped
-                                                                                                           title:@"Appearance"
+                                                                                                           title:@"外观"
                                                                                                            items:[ADSettings appearanceTitles]
                                                                                                           values:[ADSettings appearanceValues]
                                                                                                     currentValue:[NSString stringWithFormat:@"%td",[ADSettings appearanceStyle]]
@@ -165,7 +165,7 @@
 
 - (instancetype)initWithStyle:(UITableViewStyle)style {
     if (self = [super initWithStyle:UITableViewStyleGrouped]) {
-        self.title = @"Info";
+        self.title = @"使用说明";
     }
     return self;
 }
@@ -175,11 +175,11 @@
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return @"- Copy the app bundle Identifier by tapping it\n\
-- Edit app icon name by tapping it\n\
-- Filza is required to open folders\n\
-- Clearing Caches will delete the app's \"Caches\" and \"Tmp\" folders\n\
-- Clearing app data will delete Library/Documents/Tmp folders and reset permissions";
+    return @"• 点击应用标识符可复制到剪贴板\n"
+            @"• 点击应用名称可修改图标名称\n"
+            @"• 打开文件夹需要安装 Filza\n"
+            @"• 清理缓存会删除应用的 Caches 和 tmp 文件夹\n"
+            @"• 清除应用数据会删除 Library、Documents 和 tmp 文件夹，并重置权限";
 }
 
 @end
