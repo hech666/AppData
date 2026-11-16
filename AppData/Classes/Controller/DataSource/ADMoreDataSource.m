@@ -33,19 +33,19 @@
     return 6;
 }
 
-- (NSArray *)adItemsForSection:(NSInteger)section {
-    switch (section) {
-        case 1: return self.appData.urlSchemes;
-        case 2: return self.appData.queriesSchemes;
-        case 3: return self.appData.activityTypes;
-        case 4: return self.appData.backgroundModes;
-        case 5: return self.appData.entitlementsIdentifiers;
-        default: return nil;
-    }
-}
-
 - (NSInteger)numberOfRowsInSection:(NSInteger)section {
-    return [self adItemsForSection:section].count;
+    if (section == 1) {
+        return self.appData.urlSchemes.count;
+    } else if (section == 2) {
+        return self.appData.queriesSchemes.count;
+    } else if (section == 3) {
+        return self.appData.activityTypes.count;
+    } else if (section == 4) {
+        return self.appData.backgroundModes.count;
+    } else if (section == 5) {
+        return self.appData.entitlementsIdentifiers.count;
+    }
+    return 0;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -118,8 +118,16 @@
             cell.textLabel.font = [UIFont systemFontOfSize:15];
         }
         [ADAppearance applyStylesToCell:cell];
-        if (indexPath.section >= 1 && indexPath.section <= 5) {
-            cell.textLabel.text = [NSString stringWithFormat:@"%@",[[self adItemsForSection:indexPath.section] objectAtIndex:indexPath.row]];
+        if (indexPath.section == 1) {
+            cell.textLabel.text = [NSString stringWithFormat:@"%@",[self.appData.urlSchemes objectAtIndex:indexPath.row]];
+        } else if (indexPath.section == 2) {
+            cell.textLabel.text = [NSString stringWithFormat:@"%@",[self.appData.queriesSchemes objectAtIndex:indexPath.row]];
+        } else if (indexPath.section == 3) {
+            cell.textLabel.text = [NSString stringWithFormat:@"%@",[self.appData.activityTypes objectAtIndex:indexPath.row]];
+        } else if (indexPath.section == 4) {
+            cell.textLabel.text = [NSString stringWithFormat:@"%@",[self.appData.backgroundModes objectAtIndex:indexPath.row]];
+        } else if (indexPath.section == 5) {
+            cell.textLabel.text = [NSString stringWithFormat:@"%@",[self.appData.entitlementsIdentifiers objectAtIndex:indexPath.row]];
         }
         return cell;
     }
@@ -129,6 +137,14 @@
 - (void)adSwipeToggleChanged:(UISwitch *)sender {
     [ADSettings setObject:@(sender.on) forKey:kSwipeUpEnabled];
     [[NSNotificationCenter defaultCenter] postNotificationName:kAppDataSwipeUpPreferencesChangedNotification object:nil];
+}
+
+- (UIImage *)makeThumbnailOfSize:(CGSize)size ofImage:(UIImage *)image {
+    UIGraphicsBeginImageContextWithOptions(size, NO, UIScreen.mainScreen.scale);
+    [image drawInRect:CGRectMake(0, 0, size.width, size.height)];
+    UIImage *newThumbnail = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return newThumbnail;
 }
 
 #pragma mark - UITableViewDelegate

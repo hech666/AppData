@@ -38,16 +38,15 @@
     BOOL disabled = sender.on;
     sender.enabled = NO;
     NSString *identifier = self.appData.bundleIdentifier;
-    ADDataViewController *controller = self.dataViewController;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         NSError *error = nil;
         BOOL ok = [ADChoicyBridge setInjectionDisabled:disabled forIdentifier:identifier error:&error];
         dispatch_async(dispatch_get_main_queue(), ^{
-            [controller.tableView reloadData];
+            [self.dataViewController.tableView reloadData];
             if (!ok) {
                 UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Choicy 同步失败" message:error.localizedDescription ?: @"未能保存设置，请重试。" preferredStyle:UIAlertControllerStyleAlert];
                 [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
-                [controller presentViewController:alert animated:YES completion:nil];
+                [self.dataViewController presentViewController:alert animated:YES completion:nil];
             }
         });
     });
@@ -58,16 +57,15 @@
     sender.enabled = NO;
     NSString *identifier = self.appData.bundleIdentifier;
     NSString *bundlePath = self.appData.bundleURL.path;
-    ADDataViewController *controller = self.dataViewController;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         NSError *error = nil;
         BOOL ok = [ADRootHideBridge setBlacklisted:enabled forIdentifier:identifier bundlePath:bundlePath error:&error];
         dispatch_async(dispatch_get_main_queue(), ^{
-            [controller.tableView reloadData];
+            [self.dataViewController.tableView reloadData];
             if (!ok) {
                 UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"RootHide 同步失败" message:error.localizedDescription ?: @"未能保存设置。" preferredStyle:UIAlertControllerStyleAlert];
                 [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
-                [controller presentViewController:alert animated:YES completion:nil];
+                [self.dataViewController presentViewController:alert animated:YES completion:nil];
             }
         });
     });
@@ -186,12 +184,12 @@
                     
                     if (IS_IPAD) {
                         self.dataViewController.dockDismissed = [ADDataViewController dismissFloatingDockIfNeededWithCompletion:^{
-                            [controller presentViewController:alertController animated:YES completion:^{
+                            [self.dataViewController presentViewController:alertController animated:YES completion:^{
                                 alertController.textFields.firstObject.enabled = true;
                             }];
                         }];
                     } else {
-                        [controller presentViewController:alertController animated:YES completion:^{
+                        [self.dataViewController presentViewController:alertController animated:YES completion:^{
                             alertController.textFields.firstObject.enabled = true;
                         }];
                     }
@@ -520,7 +518,7 @@
         if (confirmHandler) confirmHandler();
     }]];
     [alertController addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [controller presentViewController:alertController animated:YES completion:nil];
+    [self.dataViewController presentViewController:alertController animated:YES completion:nil];
 }
 
 @end

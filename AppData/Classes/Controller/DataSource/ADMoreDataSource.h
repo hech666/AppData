@@ -15,7 +15,7 @@
 @interface ADMoreDataSource : NSObject <UITableViewDataSource, UITableViewDelegate, ADExpandableSectionHeaderViewDelegate, ADTitleSectionHeaderViewDelegate>
 
 @property (nonatomic, strong) ADAppData *appData;
-@property (nonatomic, weak) ADDataViewController *dataViewController;
+@property (nonatomic, strong) ADDataViewController *dataViewController;
 
 - (instancetype)initWithAppData:(ADAppData *)data dataViewController:(ADDataViewController *)dataViewController;
 
