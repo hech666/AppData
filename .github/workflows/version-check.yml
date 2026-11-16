@@ -1,0 +1,19 @@
+name: Version feature compile check
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'AppData/Classes/Controller/DataSource/ADVersionController.*'
+      - '.github/workflows/version-check.yml'
+jobs:
+  compile:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Xcode project and compile version controller
+        run: |
+          plutil -lint AppData.xcodeproj/project.pbxproj
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          for ARCH in arm64 arm64e; do
+            xcrun clang -arch "$ARCH" -isysroot "$SDK" -miphoneos-version-min=11.0 -fobjc-arc -fblocks -Wall -Wextra -Wno-unused-parameter -Werror -c AppData/Classes/Controller/DataSource/ADVersionController.m -o "/tmp/ADVersionController-$ARCH.o"
+          done

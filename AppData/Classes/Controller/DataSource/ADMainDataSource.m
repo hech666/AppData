@@ -10,6 +10,7 @@
 #import "ADDataViewController.h"
 #import "ADActionsBarView.h"
 #import "ADTitleSectionHeaderView.h"
+#import "ADVersionController.h"
 
 @implementation ADMainDataSource
 
@@ -39,8 +40,7 @@
     } else if ([self isAppGroupsSection:section]) {
         return self.appData.appGroups.count;
     } else if ([self isManageSection:section]) {
-        //return 6;
-        return 2;
+        return self.appData.appStoreVendable ? 3 : 2;
     }
     return 0;
 }
@@ -250,6 +250,15 @@
                 }];
             }
             return cell;
+        } else if (indexPath.row == 2) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADVersionEntry"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"ADVersionEntry"];
+            cell.backgroundColor = UIColor.clearColor;
+            cell.textLabel.text = @"软件升降级";
+            cell.detailTextLabel.text = self.appData.version;
+            cell.accessoryView = [ADAppearance.sharedInstance tableCellChevronImageView];
+            [ADAppearance applyStylesToCell:cell];
+            return cell;
         } else if (indexPath.row == 1) {
             UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"MoreInfoCellIdentifier"];
             if (!cell) {
@@ -322,6 +331,11 @@
     if ([self isManageSection:indexPath.section]) {
         if (indexPath.row == 1) {
             [self.dataViewController switchTableViews];
+        } else if (indexPath.row == 2 && self.appData.appStoreVendable) {
+            ADVersionController *versions = [[ADVersionController alloc] initWithBundleIdentifier:self.appData.bundleIdentifier bundleURL:self.appData.bundleURL currentVersion:self.appData.version];
+            UINavigationController *navigation = [[UINavigationController alloc] initWithRootViewController:versions];
+            navigation.modalPresentationStyle = UIModalPresentationFullScreen;
+            [self.dataViewController presentViewController:navigation animated:YES completion:nil];
         }
     } else if ([self isContainersSection:indexPath.section] || [self isAppGroupsSection:indexPath.section]) {
         [self didSelectContainerOrAppGroupSectionAtIndexPath:indexPath];

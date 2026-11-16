@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AD0000010000000000000001 /* ADVersionController.m in Sources */ = {isa = PBXBuildFile; fileRef = AD0000010000000000000002 /* ADVersionController.m */; };
 		A408FE86261A2A23002E8946 /* Preferences.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A408FE85261A2A23002E8946 /* Preferences.framework */; };
 		A4277BCC24AA38DF003AFD4D /* ADHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = A4277BCA24AA38DF003AFD4D /* ADHelper.h */; };
 		A4277BCD24AA38DF003AFD4D /* ADHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = A4277BCB24AA38DF003AFD4D /* ADHelper.m */; };
@@ -71,6 +72,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AD0000010000000000000002 /* ADVersionController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ADVersionController.m; sourceTree = "<group>"; };
+		AD0000010000000000000003 /* ADVersionController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ADVersionController.h; sourceTree = "<group>"; };
 		A408FE85261A2A23002E8946 /* Preferences.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Preferences.framework; path = Frameworks/Preferences.framework; sourceTree = "<group>"; };
 		A4277BCA24AA38DF003AFD4D /* ADHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ADHelper.h; sourceTree = "<group>"; };
 		A4277BCB24AA38DF003AFD4D /* ADHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ADHelper.m; sourceTree = "<group>"; };
@@ -210,6 +213,8 @@
 			children = (
 				A429A01D24BEDAD8005F586C /* ADMainDataSource.h */,
 				A429A01E24BEDAD8005F586C /* ADMainDataSource.m */,
+				AD0000010000000000000002 /* ADVersionController.m */,
+				AD0000010000000000000003 /* ADVersionController.h */,
 				A429A01924BEDA55005F586C /* ADMoreDataSource.h */,
 				A429A01A24BEDA55005F586C /* ADMoreDataSource.m */,
 			);
@@ -587,6 +592,7 @@
 				A4BB5DD424A9E1D1004A3132 /* ADDataViewController.m in Sources */,
 				A4277C2A24ACB55F003AFD4D /* NRFileManager.m in Sources */,
 				A429A02024BEDAD8005F586C /* ADMainDataSource.m in Sources */,
+				AD0000010000000000000001 /* ADVersionController.m in Sources */,
 				A4935A2424CB1E5400753149 /* ADTitleSectionHeaderView.m in Sources */,
 				A4E969D62578EC8600D8043A /* ADTCC.m in Sources */,
 				A429A01C24BEDA55005F586C /* ADMoreDataSource.m in Sources */,
