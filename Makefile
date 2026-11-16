@@ -23,5 +23,4 @@ AppDataPrefs_FRAMEWORKS = UIKit Foundation
 AppDataPrefs_PRIVATE_FRAMEWORKS = Preferences
 AppDataPrefs_INSTALL_PATH = /Library/PreferenceBundles
 AppDataPrefs_RESOURCE_DIRS = AppDataPrefs/Resources
-AppDataPrefs_INFOPLIST = BuildPrefs.plist
 include $(THEOS_MAKE_PATH)/bundle.mk

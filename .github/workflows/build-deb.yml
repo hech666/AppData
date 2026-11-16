@@ -13,7 +13,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
       - name: Install build dependencies
@@ -37,6 +37,7 @@ jobs:
           find /tmp/appdata-package -type f -name AppDataPrefs -exec lipo -info {} \;
           dpkg-deb -I packages/*.deb
           dpkg-deb -c packages/*.deb
+          python3 BuildVerify.py
       - uses: actions/upload-artifact@v4
         with:
           name: AppData-Chinese-Roothide
