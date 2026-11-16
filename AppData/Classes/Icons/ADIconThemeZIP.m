@@ -25,7 +25,7 @@ NSDictionary<NSString *, NSData *> *ADIconReadThemeZIP(NSData *data, NSError **e
     NSUInteger cursor = cdOffset, limit = cdOffset + cdSize, total = 0;
     NSMutableDictionary *result = [NSMutableDictionary new];
     NSMutableSet *foldedIDs = [NSMutableSet new];
-    for (NSUInteger index = 0; index < count; index++) { @autoreleasepool {
+    for (NSUInteger index = 0; index < count; index++) {
         if (cursor > limit || limit-cursor < 46 || ADIconU32(p+cursor) != 0x02014b50) return ADIconZIPError(error,@"ZIP 中央目录损坏。");
         const uint8_t *entry = p+cursor;
         uint16_t flags = ADIconU16(entry+8), method = ADIconU16(entry+10), nameLen = ADIconU16(entry+28), extraLen = ADIconU16(entry+30), commentLen = ADIconU16(entry+32);
@@ -65,7 +65,7 @@ NSDictionary<NSString *, NSData *> *ADIconReadThemeZIP(NSData *data, NSError **e
         static const uint8_t magic[] = {137,80,78,71,13,10,26,10};
         if (crc32(0,output.bytes,(uInt)output.length) != crc || output.length < 8 || memcmp(output.bytes,magic,8)) return ADIconZIPError(error,[NSString stringWithFormat:@"PNG 签名或 CRC 校验失败：%@",name]);
         result[identifier] = output; [foldedIDs addObject:identifier.lowercaseString]; total += expanded;
-    } }
+    }
     if (cursor != limit) return ADIconZIPError(error,@"ZIP 中央目录长度不一致。");
     if (!result.count) return ADIconZIPError(error,@"未找到图标。请将 PNG 命名为 com.example.app.png，可放在主题子目录中。");
     return result.copy;

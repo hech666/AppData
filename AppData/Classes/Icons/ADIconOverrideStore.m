@@ -93,11 +93,11 @@ static UIImage *ADIconDecode(NSData *data) {
     // Decode before acquiring the renderer lock. A failed image aborts the whole import.
     NSMutableDictionary *decoded = [NSMutableDictionary new];
     if (!input.count || input.count > 256) { if (error) *error = ADIconError(@"主题必须包含 1–256 张图标。"); return NO; }
-    for (NSString *key in input) { @autoreleasepool {
+    for (NSString *key in input) {
         UIImage *image = ADIconValidBundleIdentifier(key) ? ADIconDecode(input[key]) : nil;
         if (!image) { if (error) *error = ADIconError([NSString stringWithFormat:@"图标无效、过大或无法解码：%@",key]); return NO; }
         decoded[key] = image;
-    } }
+    }
     @synchronized(self) {
         NSMutableDictionary *map = [self.adIconState[@"files"] mutableCopy], *images = self.adIconImages.mutableCopy;
         [images addEntriesFromDictionary:decoded];
@@ -105,13 +105,13 @@ static UIImage *ADIconDecode(NSData *data) {
         NSFileManager *fm = NSFileManager.defaultManager; NSString *root = ADIconOverridesDirectory();
         if (![fm createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:error]) return NO;
         NSMutableArray *created = [NSMutableArray new]; BOOL ok = YES;
-        for (NSString *key in decoded) { @autoreleasepool {
+        for (NSString *key in decoded) {
             NSString *file = [NSUUID.UUID.UUIDString stringByAppendingPathExtension:@"png"];
             NSString *path = [root stringByAppendingPathComponent:file]; [created addObject:path];
             NSData *png = UIImagePNGRepresentation(decoded[key]);
             if (!png || ![png writeToFile:path options:NSDataWritingAtomic error:error]) { ok = NO; break; }
             map[key] = file;
-        } }
+        }
         if (ok) ok = [self adIconCommit:@{@"enabled":self.adIconState[@"enabled"], @"files":map} images:images error:error];
         if (!ok) for (NSString *path in created) [fm removeItemAtPath:path error:nil];
         return ok;
