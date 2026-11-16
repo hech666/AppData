@@ -24,6 +24,8 @@ jobs:
           git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/ios-sdks
           git -C /tmp/ios-sdks sparse-checkout set iPhoneOS16.5.sdk
           cp -R /tmp/ios-sdks/iPhoneOS16.5.sdk "$HOME/theos/sdks/"
+      - name: Test ZIP theme parser
+        run: python3 Tests/check_icons.py
       - name: Prepare resources and compile entire package
         run: |
           python3 BuildPrepare.py

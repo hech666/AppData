@@ -73,7 +73,10 @@
 - (void)adIconConfirm:(NSString *)message action:(void (^)(void))action {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"确认图标更改" message:message preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"继续" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *item) { action(); }]];
+    __weak UIAlertController *weakAlert = alert;
+    [alert addAction:[UIAlertAction actionWithTitle:@"继续" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *item) {
+        [weakAlert dismissViewControllerAnimated:YES completion:action];
+    }]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
