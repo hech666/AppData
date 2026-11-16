@@ -6,6 +6,11 @@
 //
 
 #import "ADHelper.h"
+#if __has_include(<rootless.h>)
+#import <rootless.h>
+#else
+#define ROOT_PATH_NS(path) (path)
+#endif
 
 @interface ADHelper ()
 @property (nonatomic, strong) NSBundle *resoucesBundle;
@@ -19,7 +24,7 @@
     dispatch_once(&p, ^{
         _sharedInstance = [[self alloc] init];
         // Create resources bundle
-        _sharedInstance.resoucesBundle = [NSBundle bundleWithPath:@"/Library/Application Support/AppData/Resources.bundle"];
+        _sharedInstance.resoucesBundle = [NSBundle bundleWithPath:ROOT_PATH_NS(@"/Library/Application Support/AppData/Resources.bundle")];
     });
     return _sharedInstance;
 }

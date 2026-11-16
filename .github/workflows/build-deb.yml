@@ -1,0 +1,44 @@
+name: Build AppData Roothide deb
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'AppData/**'
+      - 'AppDataPrefs/**'
+      - 'Makefile'
+      - 'Build*'
+      - 'control'
+      - '.github/workflows/build-deb.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: brew install dpkg ldid make
+      - name: Set up Theos and iOS SDK
+        run: |
+          git clone --recursive --depth 1 https://github.com/roothide/theos.git "$HOME/theos"
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/ios-sdks
+          git -C /tmp/ios-sdks sparse-checkout set iPhoneOS16.5.sdk
+          cp -R /tmp/ios-sdks/iPhoneOS16.5.sdk "$HOME/theos/sdks/"
+      - name: Prepare resources and compile entire package
+        run: |
+          python3 BuildPrepare.py
+          export THEOS="$HOME/theos"
+          gmake package THEOS_PACKAGE_SCHEME=roothide -j3
+      - name: Verify packaged binaries
+        run: |
+          mkdir /tmp/appdata-package
+          dpkg-deb -x packages/*.deb /tmp/appdata-package
+          find /tmp/appdata-package -type f -name AppData.dylib -exec lipo -info {} \;
+          find /tmp/appdata-package -type f -name AppDataPrefs -exec lipo -info {} \;
+          dpkg-deb -I packages/*.deb
+          dpkg-deb -c packages/*.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AppData-Chinese-Roothide
+          path: packages/*.deb
+          if-no-files-found: error

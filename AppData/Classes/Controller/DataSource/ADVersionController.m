@@ -166,7 +166,7 @@ static id ADVLookup(Class cls, NSDictionary *dictionary) {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ADVersionRow"];
     if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"ADVersionRow"];
     NSDictionary *row = self.adv_versions[indexPath.row];
-    NSString *version = ADVText(row[@"version"]);
+    NSString *version = ADVText(row[@"bundle_version"]);
     cell.textLabel.text = version.length ? version : @"未标注版本号";
     cell.detailTextLabel.text = [NSString stringWithFormat:@"%@  ·  ID：%lld", ADVText(row[@"created_at"]), ADVNumber(row[@"external_identifier"])];
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
@@ -176,7 +176,7 @@ static id ADVLookup(Class cls, NSDictionary *dictionary) {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
     if (self.adv_busy) return;
     NSDictionary *row = self.adv_versions[indexPath.row];
-    NSString *version = ADVText(row[@"version"]);
+    NSString *version = ADVText(row[@"bundle_version"]);
     long long versionID = ADVNumber(row[@"external_identifier"]);
     NSString *message = [NSString stringWithFormat:@"当前版本：%@\n目标版本：%@\n内部版本 ID：%lld\n\n将通过 App Store 请求安装。降级后旧版本可能无法读取新版数据，建议先备份。", self.adv_currentVersion ?: @"未知", version.length ? version : @"未标注", versionID];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"确认安装版本" message:message preferredStyle:UIAlertControllerStyleAlert];
