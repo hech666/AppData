@@ -1,49 +1,41 @@
 #import "ADDataViewController.h"
 
-// 安全检查宏：避免重复 respondsToSelector 判断
-#define AD_SAFE_CALL(obj, sel, ...) \
-    ([obj respondsToSelector:@selector(sel)] ? [obj sel __VA_ARGS__] : nil)
+%group SHARED_HOOKS
 
-#pragma mark - Swipe Up Gesture
+#pragma mark - Swipe Up on Icon
 
 %hook SBIconImageView
 
 %property (nonatomic, retain) UISwipeGestureRecognizer *adSwipeGestureRecognizer;
 
-- (instancetype)initWithFrame:(CGRect)frame {
+- (SBIconImageView *)initWithFrame:(CGRect)arg1 {
     %log;
-    SBIconImageView *result = %orig;
-    
-    // 卫语句：排除文件夹图标视图
-    if ([result isKindOfClass:NSClassFromString(@"SBFolderIconImageView")]) {
-        return result;
-    }
-    
-    if ([result respondsToSelector:@selector(setAdSwipeGestureRecognizer:)]) {
-        [[NSNotificationCenter defaultCenter] addObserver:result
-                                                 selector:@selector(appDataPreferencesChanged)
-                                                     name:kAppDataSwipeUpPreferencesChangedNotification
-                                                   object:nil];
+    SBIconImageView *r = %orig;
+    if (![r isKindOfClass:NSClassFromString(@"SBFolderIconImageView")]
+        && [r respondsToSelector:@selector(setAdSwipeGestureRecognizer:)]) {
+        [[NSNotificationCenter defaultCenter] addObserver:r selector:@selector(appDataPreferencesChanged) name:kAppDataSwipeUpPreferencesChangedNotification object:nil];
         
-        self.adSwipeGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:result
-                                                                                  action:@selector(appDataDidSwipeUp:)];
-        self.adSwipeGestureRecognizer.direction = UISwipeGestureRecognizerDirectionUp;
-        result.userInteractionEnabled = YES;
+        // Create Gesture Recognizer
+        self.adSwipeGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:r action:@selector(appDataDidSwipeUp:)];
+        self.adSwipeGestureRecognizer.direction = (UISwipeGestureRecognizerDirectionUp);
+        r.userInteractionEnabled = YES;
         
+        // Add gesture if enabled
         [self appDataPreferencesChanged];
     }
-    return result;
+    return r;
 }
 
 %new
 - (void)appDataPreferencesChanged {
-    BOOL shouldEnable = [ADSettings swipeUpEnabled];
-    BOOL isAdded = [self.gestureRecognizers containsObject:self.adSwipeGestureRecognizer];
-    
-    if (shouldEnable && !isAdded) {
-        [self addGestureRecognizer:self.adSwipeGestureRecognizer];
-    } else if (!shouldEnable && isAdded) {
-        [self removeGestureRecognizer:self.adSwipeGestureRecognizer];
+    if ([ADSettings swipeUpEnabled]) {
+        if (![self.gestureRecognizers containsObject:self.adSwipeGestureRecognizer]) {
+            [self addGestureRecognizer:self.adSwipeGestureRecognizer];
+        }
+    } else {
+        if ([self.gestureRecognizers containsObject:self.adSwipeGestureRecognizer]) {
+            [self removeGestureRecognizer:self.adSwipeGestureRecognizer];
+        }
     }
 }
 
@@ -56,27 +48,31 @@
 
 %end
 
-#pragma mark - Custom App Name
+#pragma mark - Custom App Icon Name
 
 %hook SBApplication
 
 - (NSString *)displayName {
-    NSString *bundleID = AD_SAFE_CALL(self, bundleIdentifier);
-    if (!bundleID) return %orig;
-    
-    NSString *customAppName = [ADSettings customAppNameForBundleIdentifier:bundleID];
-    return customAppName ?: %orig;
+    if ([self respondsToSelector:@selector(bundleIdentifier)]) {
+        NSString *customAppName = [ADSettings customAppNameForBundleIdentifier:self.bundleIdentifier];
+        return customAppName ? : %orig;
+    }
+    return %orig;
 }
 
 %end
 
-#pragma mark - 3D Touch Menu
+%end
+
+#pragma mark - ForceTouch Menu
+
+%group IOS13_AND_NEWER_HOOKS
 
 %hook SBIconView
 
 - (void)setApplicationShortcutItems:(NSArray *)items {
     if ([ADSettings forceTouchMenuEnabled] && [self ad_isSupportedIcon]) {
-        NSMutableArray *newItems = [NSMutableArray arrayWithArray:items ?: @[]];
+        NSMutableArray *newItems = [NSMutableArray arrayWithArray:items?:@[]];
         SBSApplicationShortcutItem *shortcutItem = [ADHelper applicationShortcutItem];
         if (shortcutItem) {
             [newItems insertObject:shortcutItem atIndex:0];
@@ -87,9 +83,8 @@
     }
 }
 
-+ (void)activateShortcut:(SBSApplicationShortcutItem *)item
-     withBundleIdentifier:(NSString *)bundleID
-              forIconView:(SBIconView *)iconView {
++ (void)activateShortcut:(SBSApplicationShortcutItem *)item withBundleIdentifier:(NSString *)bundleID forIconView:(SBIconView *)iconView {
+    NSLog(@"[AppData]: iconView: %@",iconView);
     if ([item.type isEqualToString:kSBApplicationShortcutItemType]) {
         [ADDataViewController presentControllerFromSBIconView:iconView fromContextMenu:YES];
     } else {
@@ -99,33 +94,88 @@
 
 %new
 - (BOOL)ad_isSupportedIcon {
-    if (![self respondsToSelector:@selector(icon)]) {
-        return YES;
+    if ([self respondsToSelector:@selector(icon)]) {
+        return ![self.icon isKindOfClass:%c(SBFolderIcon)]
+            && ![self.icon isKindOfClass:%c(SBWidgetIcon)];
     }
-    return ![self.icon isKindOfClass:%c(SBFolderIcon)]
-        && ![self.icon isKindOfClass:%c(SBWidgetIcon)];
+    return YES;
 }
 
 %end
 
 %hook SBSApplicationShortcutItem
 
+// iOS 13
 - (BOOL)sbh_isSystemShortcut {
-    if ([self.type isEqualToString:kSBApplicationShortcutItemType]) {
+    if ([self respondsToSelector:@selector(type)]
+        && [self.type respondsToSelector:@selector(isEqualToString:)]
+        && [self.type isEqualToString:kSBApplicationShortcutItemType]) {
         return YES;
     }
     return %orig;
 }
 
+// iOS 14
 - (NSUInteger)sbh_shortcutSection {
-    if ([self.type isEqualToString:kSBApplicationShortcutItemType]) {
-        return 2; // System shortcuts section
+    if ([self respondsToSelector:@selector(type)]
+        && [self.type respondsToSelector:@selector(isEqualToString:)]
+        && [self.type isEqualToString:kSBApplicationShortcutItemType]) {
+        return 2;
     }
     return %orig;
 }
 
 %end
 
+%end
+
+
+%group IOS12_AND_OLDER_HOOKS
+
+%hook SBUIAppIconForceTouchControllerDataProvider
+
+- (id)applicationShortcutItems {
+    if ([ADSettings forceTouchMenuEnabled]) {
+        NSMutableArray *newItems = [NSMutableArray arrayWithArray:%orig?:@[]];
+        SBSApplicationShortcutItem *shortcutItem = [ADHelper applicationShortcutItem];
+        if (shortcutItem) {
+            [newItems insertObject:shortcutItem atIndex:0];
+        }
+        return newItems;
+    }
+    return %orig;
+}
+
+%end
+
+%hook SBUIAppIconForceTouchController
+
+- (void)appIconForceTouchShortcutViewController:(id)arg1 activateApplicationShortcutItem:(SBSApplicationShortcutItem *)item {
+    if ([item.type isEqualToString:kSBApplicationShortcutItemType]) {
+        [self dismissAnimated:YES withCompletionHandler:nil];
+        
+        SBUIAppIconForceTouchControllerDataProvider* _dataProvider = [self valueForKey:@"_dataProvider"];
+        SBIconView *iconView = (SBIconView *)_dataProvider.gestureRecognizer.view;
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            [ADDataViewController presentControllerFromSBIconView:iconView fromContextMenu:YES];
+        });
+    } else {
+        %orig;
+    }
+}
+
+%end
+
+%end
+
+
 %ctor {
-    %init;
+    %init(SHARED_HOOKS);
+    
+    if (@available(iOS 13, *)) {
+        %init(IOS13_AND_NEWER_HOOKS);
+    } else {
+        %init(IOS12_AND_OLDER_HOOKS);
+    }
 }
