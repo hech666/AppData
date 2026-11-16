@@ -41,7 +41,6 @@
 @property (nonatomic, assign) BOOL adIconSaving;
 @property (nonatomic, weak) PHPickerViewController *adActiveIconPicker;
 @property (nonatomic, strong) UIView *adIconTouchTarget;
-@property (nonatomic, strong) UITapGestureRecognizer *adIconDoubleTap;
 
 @end
 
@@ -197,14 +196,12 @@
     if ([presentationController.presentedViewController isKindOfClass:PHPickerViewController.class]) {
         self.adActiveIconPicker = nil;
         if (!self.adIconSaving) self.adIconPickerBusy = NO;
-        self.adIconDoubleTap.enabled = NO;
-        self.adIconDoubleTap.enabled = YES;
     }
 }
 
 - (void)adPresentIconOptions {
     if (self.adIconPickerBusy || self.presentedViewController || !self.appData.bundleIdentifier) return;
-    UIAlertController *options = [UIAlertController alertControllerWithTitle:@"图标图片" message:@"选择要执行的操作" preferredStyle:UIAlertControllerStyleActionSheet];
+    UIAlertController *options = [UIAlertController alertControllerWithTitle:@"图标图片" message:@"选择要执行的操作" preferredStyle:UIAlertControllerStyleAlert];
     __weak UIAlertController *weakOptions = options;
     [options addAction:[UIAlertAction actionWithTitle:@"从相册选择图片" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         [weakOptions dismissViewControllerAnimated:YES completion:^{
@@ -233,10 +230,6 @@
         }];
     }]];
     [options addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    UIPopoverPresentationController *popover = options.popoverPresentationController;
-    popover.sourceView = self.adIconTouchTarget ?: self.iconImageView;
-    popover.sourceRect = (self.adIconTouchTarget ?: self.iconImageView).bounds;
-    popover.permittedArrowDirections = UIPopoverArrowDirectionAny;
     [self presentViewController:options animated:YES completion:nil];
 }
 
@@ -267,21 +260,12 @@
     }];
 }
 
-- (void)adIconDoubleTapped:(UITapGestureRecognizer *)gesture {
-    if (gesture.state != UIGestureRecognizerStateEnded) return;
-    [self adReconcileIconPicker];
-    if (self.presentedViewController || self.isBeingDismissed || !self.view.window) return;
-    [self adOpenIconPicker];
-}
-
 - (void)picker:(PHPickerViewController *)picker didFinishPicking:(NSArray<PHPickerResult *> *)results {
     if (picker != self.adActiveIconPicker || self.adIconSaving) return;
     NSItemProvider *provider = results.firstObject.itemProvider;
     self.adIconSaving = provider != nil;
     [picker dismissViewControllerAnimated:YES completion:^{
         self.adActiveIconPicker = nil;
-        self.adIconDoubleTap.enabled = NO;
-        self.adIconDoubleTap.enabled = YES;
         if (!provider) { self.adIconPickerBusy = NO; return; }
         NSString *identifier = self.appData.bundleIdentifier;
         [provider loadFileRepresentationForTypeIdentifier:@"public.image" completionHandler:^(NSURL *url, NSError *providerError) {
@@ -413,13 +397,9 @@
     ]];
     self.adIconTouchTarget.isAccessibilityElement = YES;
     self.adIconTouchTarget.accessibilityLabel = @"应用图标";
-    self.adIconTouchTarget.accessibilityHint = @"双击选择照片，长按管理或恢复此应用图标";
-    self.adIconDoubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(adIconDoubleTapped:)];
-    self.adIconDoubleTap.numberOfTapsRequired = 2;
-    [self.adIconTouchTarget addGestureRecognizer:self.adIconDoubleTap];
+    self.adIconTouchTarget.accessibilityHint = @"长按选择照片或恢复此应用图标";
     UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(adIconLongPressed:)];
     hold.minimumPressDuration = 0.5;
-    [hold requireGestureRecognizerToFail:self.adIconDoubleTap];
     [self.adIconTouchTarget addGestureRecognizer:hold];
     self.screenEdgeGesture.delegate = self;
 
