@@ -237,8 +237,8 @@
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
     if (self.adIconPickerBusy || [touch.view isDescendantOfView:self.iconImageView]) return NO;
-    if ([touch.view isKindOfClass:NSClassFromString(@"UITableViewCellContentView")]) {
-        return NO;
+    for (UIView *view = touch.view; view && view != self.view; view = view.superview) {
+        if ([view isKindOfClass:UIControl.class] || [view isKindOfClass:UITableView.class]) return NO;
     }
     return YES;
 }
