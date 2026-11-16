@@ -25,6 +25,8 @@ jobs:
           cp -R /tmp/ios-sdks/iPhoneOS16.5.sdk "$HOME/theos/sdks/"
       - name: Test ZIP theme parser
         run: python3 Tests/check_icons.py
+      - name: Test theme state and file preservation
+        run: python3 Tests/check_themes.py
       - name: Prepare resources and compile entire package
         run: |
           python3 BuildPrepare.py

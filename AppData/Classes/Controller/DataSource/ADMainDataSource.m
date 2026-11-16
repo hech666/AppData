@@ -201,7 +201,18 @@
                                      handler:^{
                     ADVersionController *versions = [[ADVersionController alloc] initWithBundleIdentifier:self.appData.bundleIdentifier bundleURL:self.appData.bundleURL currentVersion:self.appData.version];
                     UINavigationController *navigation = [[UINavigationController alloc] initWithRootViewController:versions];
-                    navigation.modalPresentationStyle = UIModalPresentationFullScreen;
+                    navigation.modalPresentationStyle = UIModalPresentationPageSheet;
+                    if (@available(iOS 15.0, *)) {
+                        UISheetPresentationController *sheet = navigation.sheetPresentationController;
+                        sheet.detents = @[[UISheetPresentationControllerDetent mediumDetent]];
+                        sheet.selectedDetentIdentifier = UISheetPresentationControllerDetentIdentifierMedium;
+                        sheet.prefersScrollingExpandsWhenScrolledToEdge = NO;
+                        sheet.prefersGrabberVisible = YES;
+                        sheet.preferredCornerRadius = 35;
+                    }
+                    // Keep dismissal on the Close button so in-flight requests retain
+                    // the existing cancellation and installation-state handling.
+                    navigation.modalInPresentation = YES;
                     [self.dataViewController presentViewController:navigation animated:YES completion:nil];
                 }];
 

@@ -15,7 +15,7 @@
 #import <PhotosUI/PhotosUI.h>
 #import <objc/runtime.h>
 
-@interface ADDataViewController () <UIGestureRecognizerDelegate, PHPickerViewControllerDelegate>
+@interface ADDataViewController () <UIGestureRecognizerDelegate, PHPickerViewControllerDelegate, UIAdaptivePresentationControllerDelegate>
 
 @property (nonatomic, strong) ADDataPresentationManager *presentationManager;
 
@@ -38,6 +38,10 @@
 
 @property (nonatomic, strong) UIScreenEdgePanGestureRecognizer *screenEdgeGesture;
 @property (nonatomic, assign) BOOL adIconPickerBusy;
+@property (nonatomic, assign) BOOL adIconSaving;
+@property (nonatomic, weak) PHPickerViewController *adActiveIconPicker;
+@property (nonatomic, strong) UIView *adIconTouchTarget;
+@property (nonatomic, strong) UITapGestureRecognizer *adIconDoubleTap;
 
 @end
 
@@ -175,8 +179,75 @@
     }
 }
 
-- (void)adIconDoubleTapped:(UITapGestureRecognizer *)gesture {
-    if (gesture.state != UIGestureRecognizerStateEnded || self.adIconPickerBusy || self.presentedViewController || !self.appData.bundleIdentifier) return;
+- (void)adReconcileIconPicker {
+    if (self.adIconSaving) return;
+    PHPickerViewController *picker = self.adActiveIconPicker;
+    if (!picker || (!picker.presentingViewController && !picker.isBeingPresented)) {
+        self.adActiveIconPicker = nil;
+        self.adIconPickerBusy = NO;
+    }
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [self adReconcileIconPicker];
+}
+
+- (void)presentationControllerDidDismiss:(UIPresentationController *)presentationController {
+    if ([presentationController.presentedViewController isKindOfClass:PHPickerViewController.class]) {
+        self.adActiveIconPicker = nil;
+        if (!self.adIconSaving) self.adIconPickerBusy = NO;
+        self.adIconDoubleTap.enabled = NO;
+        self.adIconDoubleTap.enabled = YES;
+    }
+}
+
+- (void)adPresentIconOptions {
+    if (self.adIconPickerBusy || self.presentedViewController || !self.appData.bundleIdentifier) return;
+    UIAlertController *options = [UIAlertController alertControllerWithTitle:@"图标图片" message:@"选择要执行的操作" preferredStyle:UIAlertControllerStyleActionSheet];
+    __weak UIAlertController *weakOptions = options;
+    [options addAction:[UIAlertAction actionWithTitle:@"从相册选择图片" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [weakOptions dismissViewControllerAnimated:YES completion:^{
+            [self adOpenIconPicker];
+        }];
+    }]];
+    [options addAction:[UIAlertAction actionWithTitle:@"恢复原本图标" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+        [weakOptions dismissViewControllerAnimated:YES completion:^{
+            self.adIconSaving = YES;
+            self.adIconPickerBusy = YES;
+            NSString *identifier = self.appData.bundleIdentifier;
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                NSError *error = nil;
+                BOOL restored = [[ADIconOverrideStore sharedStore] restoreBundleIdentifier:identifier error:&error];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    self.adIconSaving = NO;
+                    self.adIconPickerBusy = NO;
+                    if (restored) {
+                        UIImage *original = ADIconOriginalPreview(self.appData.iconView.icon, CGSizeMake(58,58), UIScreen.mainScreen.scale);
+                        self.iconImageView.image = original;
+                        if (original) self.appData.iconImage = original;
+                    }
+                    [self.class showAlertFromViewController:self title:@"图标图片" message:restored ? @"已移除此应用的覆盖，并请求刷新桌面。" : (error.localizedDescription ?: @"恢复图标失败。") cancelTitle:@"好"];
+                });
+            });
+        }];
+    }]];
+    [options addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    UIPopoverPresentationController *popover = options.popoverPresentationController;
+    popover.sourceView = self.adIconTouchTarget ?: self.iconImageView;
+    popover.sourceRect = (self.adIconTouchTarget ?: self.iconImageView).bounds;
+    popover.permittedArrowDirections = UIPopoverArrowDirectionAny;
+    [self presentViewController:options animated:YES completion:nil];
+}
+
+- (void)adIconLongPressed:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateBegan) return;
+    [self adReconcileIconPicker];
+    [self adPresentIconOptions];
+}
+
+- (void)adOpenIconPicker {
+    if (self.adIconPickerBusy || self.presentedViewController || !self.appData.bundleIdentifier) return;
     if ([self.appData.bundleIdentifier isEqual:@"com.apple.mobiletimer"] || [self.appData.bundleIdentifier isEqual:@"com.apple.mobilecal"]) {
         [self.class showAlertFromViewController:self title:@"图标图片" message:@"时钟和日历使用动态图标，当前不支持替换。" cancelTitle:@"好"];
         return;
@@ -186,13 +257,31 @@
     configuration.filter = [PHPickerFilter imagesFilter];
     PHPickerViewController *picker = [[PHPickerViewController alloc] initWithConfiguration:configuration];
     picker.delegate = self;
+    picker.modalPresentationStyle = UIModalPresentationPageSheet;
+    self.adActiveIconPicker = picker;
     self.adIconPickerBusy = YES;
-    [self presentViewController:picker animated:YES completion:nil];
+    picker.presentationController.delegate = self;
+    [self presentViewController:picker animated:YES completion:^{
+        picker.presentationController.delegate = self;
+        [self adReconcileIconPicker];
+    }];
+}
+
+- (void)adIconDoubleTapped:(UITapGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateEnded) return;
+    [self adReconcileIconPicker];
+    if (self.presentedViewController || self.isBeingDismissed || !self.view.window) return;
+    [self adOpenIconPicker];
 }
 
 - (void)picker:(PHPickerViewController *)picker didFinishPicking:(NSArray<PHPickerResult *> *)results {
+    if (picker != self.adActiveIconPicker || self.adIconSaving) return;
+    NSItemProvider *provider = results.firstObject.itemProvider;
+    self.adIconSaving = provider != nil;
     [picker dismissViewControllerAnimated:YES completion:^{
-        NSItemProvider *provider = results.firstObject.itemProvider;
+        self.adActiveIconPicker = nil;
+        self.adIconDoubleTap.enabled = NO;
+        self.adIconDoubleTap.enabled = YES;
         if (!provider) { self.adIconPickerBusy = NO; return; }
         NSString *identifier = self.appData.bundleIdentifier;
         [provider loadFileRepresentationForTypeIdentifier:@"public.image" completionHandler:^(NSURL *url, NSError *providerError) {
@@ -203,6 +292,7 @@
                 if (data) saved = [[ADIconOverrideStore sharedStore] saveImageData:data forBundleIdentifier:identifier error:&error];
             }
             dispatch_async(dispatch_get_main_queue(), ^{
+                self.adIconSaving = NO;
                 self.adIconPickerBusy = NO;
                 if (saved) {
                     UIImage *image = [[ADIconOverrideStore sharedStore] imageForBundleIdentifier:identifier size:CGSizeMake(58,58) scale:UIScreen.mainScreen.scale radius:12];
@@ -236,7 +326,7 @@
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    if (self.adIconPickerBusy || [touch.view isDescendantOfView:self.iconImageView]) return NO;
+    if (self.adIconPickerBusy || [touch.view isDescendantOfView:self.iconImageView] || [touch.view isDescendantOfView:self.adIconTouchTarget]) return NO;
     for (UIView *view = touch.view; view && view != self.view; view = view.superview) {
         if ([view isKindOfClass:UIControl.class] || [view isKindOfClass:UITableView.class]) return NO;
     }
@@ -311,11 +401,27 @@
     self.iconImageView = [[UIImageView alloc] init];
     [self.iconImageView setTranslatesAutoresizingMaskIntoConstraints:NO];
     [containerView addSubview:self.iconImageView];
-    UITapGestureRecognizer *iconDoubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(adIconDoubleTapped:)];
-    iconDoubleTap.numberOfTapsRequired = 2;
-    iconDoubleTap.cancelsTouchesInView = NO;
-    self.iconImageView.userInteractionEnabled = YES;
-    [self.iconImageView addGestureRecognizer:iconDoubleTap];
+    self.adIconTouchTarget = [UIView new];
+    self.adIconTouchTarget.backgroundColor = UIColor.clearColor;
+    self.adIconTouchTarget.translatesAutoresizingMaskIntoConstraints = NO;
+    [containerView addSubview:self.adIconTouchTarget];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.adIconTouchTarget.centerXAnchor constraintEqualToAnchor:self.iconImageView.centerXAnchor],
+        [self.adIconTouchTarget.centerYAnchor constraintEqualToAnchor:self.iconImageView.centerYAnchor],
+        [self.adIconTouchTarget.widthAnchor constraintEqualToConstant:74],
+        [self.adIconTouchTarget.heightAnchor constraintEqualToConstant:74]
+    ]];
+    self.adIconTouchTarget.isAccessibilityElement = YES;
+    self.adIconTouchTarget.accessibilityLabel = @"应用图标";
+    self.adIconTouchTarget.accessibilityHint = @"双击选择照片，长按管理或恢复此应用图标";
+    self.adIconDoubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(adIconDoubleTapped:)];
+    self.adIconDoubleTap.numberOfTapsRequired = 2;
+    [self.adIconTouchTarget addGestureRecognizer:self.adIconDoubleTap];
+    UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(adIconLongPressed:)];
+    hold.minimumPressDuration = 0.5;
+    [hold requireGestureRecognizerToFail:self.adIconDoubleTap];
+    [self.adIconTouchTarget addGestureRecognizer:hold];
+    self.screenEdgeGesture.delegate = self;
 
 
     [self.iconImageView.leadingAnchor constraintEqualToAnchor:containerView.leadingAnchor constant:15].active = YES;

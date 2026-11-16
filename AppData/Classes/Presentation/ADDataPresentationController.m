@@ -125,7 +125,7 @@
         case ADDataPresentationDirectionTop:
             return CGSizeMake(parentSize.width, parentSize.height * (self.configuration.screenPercentage / 100));
         case ADDataPresentationDirectionBottom:
-            return CGSizeMake(parentSize.width * 0.94, parentSize.height * (self.configuration.screenPercentage / 100));
+            return CGSizeMake(parentSize.width * 0.99, parentSize.height * (self.configuration.screenPercentage / 100));
         default:
             return CGSizeZero;
     }

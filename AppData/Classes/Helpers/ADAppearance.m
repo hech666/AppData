@@ -97,7 +97,7 @@
     }
     UIImageView *imageView = [[UIImageView alloc] initWithImage:image];
     imageView.frame = CGRectMake(0, 0, 10.5, 13.36);
-    imageView.tintColor = self.isDarkStyle ? [UIColor colorWithRed:0.66 green:0.66 blue:0.66 alpha:0.5] : [[UIColor grayColor] colorWithAlphaComponent:0.6];
+    imageView.tintColor = UIColor.whiteColor;
     return imageView;
 }
 

@@ -97,7 +97,7 @@
     [super layoutSubviews];
     
     self.titleLabel.textColor = [ADAppearance.sharedInstance tableHeaderTextColor];
-    self.backImageView.tintColor = self.titleLabel.textColor;
+    self.backImageView.tintColor = UIColor.whiteColor;
 }
 
 @end

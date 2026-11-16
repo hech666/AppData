@@ -134,6 +134,8 @@
     return nil;
 }
 
+- (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
+
 - (void)adSwipeToggleChanged:(UISwitch *)sender {
     [ADSettings setObject:@(sender.on) forKey:kSwipeUpEnabled];
     [[NSNotificationCenter defaultCenter] postNotificationName:kAppDataSwipeUpPreferencesChangedNotification object:nil];

@@ -178,7 +178,7 @@
    
     self.nameLabel.textColor = [ADAppearance.sharedInstance primaryTextColor];
     self.detailLabel.textColor = [ADAppearance.sharedInstance secondaryTextColor];
-    self.actionImageView.tintColor = [ADAppearance.sharedInstance actionsBarIconTintColor];
+    self.actionImageView.tintColor = UIColor.whiteColor;
 }
 
 @end

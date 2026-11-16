@@ -9,6 +9,7 @@
 typedef struct { CGSize size; CGFloat scale; CGFloat continuousCornerRadius; } ADIconImageInfo;
 typedef UIImage *(*ADIconImageIMP)(id, SEL, ADIconImageInfo);
 static ADIconImageIMP ADIconOriginalGenerate, ADIconOriginalUnmasked, ADIconOriginalImage;
+static __thread BOOL ADIconReadingOriginal;
 static NSHashTable *ADIconObservedModels;
 static NSObject *ADIconObservedLock;
 
@@ -29,6 +30,7 @@ static void ADIconObserve(id icon) {
     if (icon) @synchronized(ADIconObservedLock) { [ADIconObservedModels addObject:icon]; }
 }
 static UIImage *ADIconReplacement(id icon, ADIconImageInfo info) {
+    if (ADIconReadingOriginal) return nil;
     ADIconObserve(icon);
     NSString *identifier = ADIconIdentifier(icon);
     if ([identifier isEqual:@"com.apple.mobiletimer"] || [identifier isEqual:@"com.apple.mobilecal"]) return nil;
@@ -58,6 +60,20 @@ static BOOL ADIconInfoMethodMatches(Class cls, SEL selector) {
     }
     valid = valid && [clean isEqual:@"{SBIconImageInfo={CGSize=dd}dd}"] && sizeof(ADIconImageInfo) == 32;
     free(ret); free(arg); return valid;
+}
+UIImage *ADIconOriginalPreview(id icon, CGSize size, CGFloat scale) {
+    SEL selector = NSSelectorFromString(@"generateIconImageWithInfo:");
+    if (!NSThread.isMainThread || !icon || !ADIconInfoMethodMatches([icon class], selector)) return nil;
+    BOOL old = ADIconReadingOriginal;
+    ADIconReadingOriginal = YES;
+    UIImage *image = nil;
+    @try {
+        ADIconImageInfo info = {size, scale, 12};
+        id result = ((ADIconImageIMP)objc_msgSend)(icon, selector, info);
+        if ([result isKindOfClass:UIImage.class]) image = result;
+    } @catch (NSException *exception) { image = nil; }
+    @finally { ADIconReadingOriginal = old; }
+    return image;
 }
 static BOOL ADIconSendVoid(id target, NSString *name) {
     SEL sel = NSSelectorFromString(name); NSMethodSignature *sig = [target methodSignatureForSelector:sel];
