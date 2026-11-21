@@ -4,11 +4,12 @@ results=[]
 for relative in ['Library/MobileSubstrate/DynamicLibraries/AppData.dylib']:
  p=root/relative
  assert p.is_file(),relative
- b=p.read_bytes(); assert struct.unpack_from('>I',b)[0]==0xcafebabe
+ b=p.read_bytes(); assert struct.unpack_from('<I',b)[0]==0xfeedfacf, 'expected thin Mach-O'
+ cpu,sub=struct.unpack_from('<II',b,4)
+ assert (cpu,sub)==(0x0100000c,0x80000002), 'expected modern arm64e only'
  slices=[]
- for i in range(struct.unpack_from('>I',b,4)[0]):
-  cpu,sub,off,size,align=struct.unpack_from('>IIIII',b,8+20*i)
-  d=b[off:off+size];assert struct.unpack_from('<I',d)[0]==0xfeedfacf
+ for d in [b]:
+  assert struct.unpack_from('<I',d)[0]==0xfeedfacf
   assert struct.unpack_from('<II',d,4)==(cpu,sub)
   pos=32;sig=None
   for _ in range(struct.unpack_from('<I',d,16)[0]):
@@ -31,7 +32,7 @@ for relative in ['Library/MobileSubstrate/DynamicLibraries/AppData.dylib']:
    checked+=pages
   assert checked
   slices.append({'subtype':hex(sub),'verified_page_hashes':checked})
- assert {int(s['subtype'],16)&0xffffff for s in slices}=={0,2}
+ assert len(slices)==1 and slices[0]['subtype']=='0x80000002'
  results.append({'file':relative,'sha256':hashlib.sha256(b).hexdigest(),'slices':slices})
 assert not (root/'Library/PreferenceBundles').exists()
 assert not (root/'Library/PreferenceLoader').exists()

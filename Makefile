@@ -1,5 +1,5 @@
-ARCHS = arm64 arm64e
-TARGET = iphone:clang:16.5:16.0
+ARCHS = arm64e
+TARGET = iphone:clang:16.5:15.0
 THEOS_PACKAGE_SCHEME ?= roothide
 FINALPACKAGE = 1
 DEBUG = 0
@@ -16,3 +16,4 @@ AppData_FRAMEWORKS = UIKit Foundation QuartzCore CoreGraphics CoreLocation Photo
 AppData_LIBRARIES = z
 AppData_PRIVATE_FRAMEWORKS = CoreServices
 include $(THEOS_MAKE_PATH)/tweak.mk
+
